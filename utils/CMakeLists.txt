@@ -1,0 +1,1 @@
+add_library(zenutils logger.hpp logger.cpp scope_guard.hpp)

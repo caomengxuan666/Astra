@@ -1,0 +1,2 @@
+add_library(datastructures_header_only INTERFACE)
+setup_interface(datastructures_header_only)

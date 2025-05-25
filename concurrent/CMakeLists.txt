@@ -1,0 +1,2 @@
+add_library(concurrent_header_only INTERFACE)
+setup_interface(concurrent_header_only)
