@@ -86,7 +86,7 @@ namespace Astra {
         void Fatal(const std::string &fmt, Args &&...args) {
             Log(LogLevel::FATAL, fmt::format(fmt, std::forward<Args>(args)...));
         }
-        
+
         std::string CurrentTimestamp() const;
 
     private:
@@ -104,9 +104,9 @@ namespace Astra {
     inline std::string Logger::CurrentTimestamp() const {
         auto now = std::chrono::system_clock::now();
         auto in_time_t = std::chrono::system_clock::to_time_t(now);
-        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 100;  // 改为两位毫秒
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 100;// 改为两位毫秒
         std::stringstream ss;
-        ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d %H:%M:%S.") << std::setfill('0') << std::setw(2) << ms.count();  // 调整宽度为2
+        ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d %H:%M:%S.") << std::setfill('0') << std::setw(2) << ms.count();// 调整宽度为2
         return ss.str();
     }
 

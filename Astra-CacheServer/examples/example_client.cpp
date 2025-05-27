@@ -52,13 +52,13 @@ int main() {
 
         auto keys = client.Keys("*");
         std::cout << "User keys:" << std::endl;
-        for (const auto &k : keys.array) {
+        for (const auto &k: keys.array) {
             std::cout << "- " << k.str << std::endl;
         }
 
         // 边界测试
         try {
-            client.Get("");  // 空键测试
+            client.Get("");// 空键测试
         } catch (const std::exception &e) {
             std::cerr << "Empty key test: " << e.what() << std::endl;
         }

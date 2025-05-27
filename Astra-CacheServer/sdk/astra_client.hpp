@@ -1,9 +1,9 @@
 // astra_client.hpp
 #pragma once
 #include "commands.hpp"
+#include <chrono>// 添加chrono头文件以支持时间相关功能
 #include <string>
 #include <vector>
-#include <chrono>  // 添加chrono头文件以支持时间相关功能
 
 namespace Astra::Client {
 
@@ -37,16 +37,16 @@ namespace Astra::Client {
         RespValue SendCommand(const Command::ICommand &command);
 
         // 封装常用命令
-        RespValue Set(const std::string& key, const std::string& value);
-        RespValue Set(const std::string& key, const std::string& value, std::chrono::seconds ttl);
-        RespValue Get(const std::string& key);
-        RespValue Del(const std::vector<std::string>& keys);
+        RespValue Set(const std::string &key, const std::string &value);
+        RespValue Set(const std::string &key, const std::string &value, std::chrono::seconds ttl);
+        RespValue Get(const std::string &key);
+        RespValue Del(const std::vector<std::string> &keys);
         RespValue Ping();
-        RespValue Keys(const std::string& pattern = "*");
-        RespValue TTL(const std::string& key);
-        RespValue Exists(const std::string& key);
-        RespValue Incr(const std::string& key);
-        RespValue Decr(const std::string& key);
+        RespValue Keys(const std::string &pattern = "*");
+        RespValue TTL(const std::string &key);
+        RespValue Exists(const std::string &key);
+        RespValue Incr(const std::string &key);
+        RespValue Decr(const std::string &key);
 
     private:
         int sockfd_;

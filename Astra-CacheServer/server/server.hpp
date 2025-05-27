@@ -21,12 +21,19 @@ namespace Astra::apps {
 
         void Start() {
             ZEN_LOG_INFO("Client connected from: {}", socket_.remote_endpoint().address().to_string());
-            task_queue_->Post([self = shared_from_this()]() {
-                self->DoRead();
-            });
+            if (!stopped_) {
+                auto self = shared_from_this();
+                task_queue_->Post([self]() {
+                    if (!self->stopped_) {
+                        self->DoRead();
+                    }
+                });
+            }
         }
 
         void Stop() {
+            stopped_ = true;
+
             asio::error_code ec;
             socket_.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
             socket_.cancel(ec);// 取消所有异步操作
@@ -41,6 +48,8 @@ namespace Astra::apps {
         };
 
         void DoRead() {
+            if (stopped_) return;// 如果已关闭，直接返回
+
             auto self = shared_from_this();
             asio::async_read_until(socket_, asio::dynamic_buffer(buffer_), "\r\n",
                                    [this, self](std::error_code ec, std::size_t bytes_transferred) {
@@ -53,10 +62,14 @@ namespace Astra::apps {
 
                                        std::string data = buffer_.substr(0, bytes_transferred);
                                        ZEN_LOG_DEBUG("Received raw data: {}", data);
-                                       ProcessBuffer();
-                                       task_queue_->Post([self = shared_from_this()]() {
-                                           self->DoRead();
-                                       });
+
+                                       if (!stopped_) {
+                                           self->ProcessBuffer();
+
+                                           if (!stopped_) {
+                                               self->DoRead();// 直接调用而不是 Post
+                                           }
+                                       }
                                    });
         }
 
@@ -182,13 +195,22 @@ namespace Astra::apps {
         }
 
         void WriteResponse(const std::string &response) {
-            auto self(shared_from_this());
+            auto self = shared_from_this();
             task_queue_->Post([this, self, response]() {
-                asio::write(socket_, asio::buffer(response));
-                ZEN_LOG_INFO("Sent response: {}", response);
+                // 使用异步写入
+                asio::async_write(socket_, asio::buffer(response),
+                                  [self, response](const boost::system::error_code &ec, std::size_t /*bytes_transferred*/) {
+                                      if (ec) {
+                                          ZEN_LOG_WARN("Failed to send response: {}", ec.message());
+                                          //self->Stop();// 可选：写入失败时关闭连接
+                                      } else {
+                                          ZEN_LOG_INFO("Sent response: {}", response);
+                                      }
+                                  });
             });
         }
 
+        bool stopped_ = false;// 控制状态机是否已关闭
         asio::ip::tcp::socket socket_;
         std::string buffer_;
         std::shared_ptr<Astra::proto::RedisCommandHandler> handler_;
@@ -225,41 +247,45 @@ namespace Astra::apps {
         }
 
         void Stop() {
-            // 主动关闭 acceptor
+            // 关闭acceptor
             asio::error_code ec;
             acceptor_.close(ec);
 
-            // 停止任务队列
-            task_queue_->Stop();
-
-            // 停止所有 Session
+            // 停止所有活跃Session
             for (auto &session: active_sessions_) {
-                session->Stop();
+                session->Stop();// 确保停止所有异步操作
             }
             active_sessions_.clear();
-
-            // 停止 io_context
-            context_.stop();
         }
 
     private:
         void DoAccept(std::shared_ptr<asio::ip::tcp::socket> socket) {
             acceptor_.async_accept(*socket, [this, socket](std::error_code ec) {
-                if (!ec) {
-                    ZEN_LOG_INFO("New client accepted");
-
-                    // 创建 Session 并加入活跃列表
-                    auto session = std::make_shared<Session>(std::move(*socket), cache_);
-                    {
-                        active_sessions_.push_back(session);
+                if (ec) {
+                    if (ec == asio::error::operation_aborted) {
+                        ZEN_LOG_INFO("Acceptor stopped, exiting accept loop");
+                        return;// 不再继续监听新连接
                     }
-
-                    task_queue_->Post([session = std::move(session)]() mutable {
-                        session->Start();
-                    });
-                } else {
                     ZEN_LOG_WARN("Accept error: {}", ec.message());
+                    // 其他错误继续监听
+                    auto new_socket = std::make_shared<asio::ip::tcp::socket>(context_);
+                    DoAccept(new_socket);
+                    return;
                 }
+
+                // 处理新连接...
+                ZEN_LOG_INFO("New client accepted");
+
+                // 创建 Session 并加入活跃列表
+                auto session = std::make_shared<Session>(std::move(*socket), cache_);
+                {
+                    std::lock_guard<std::mutex> lock(sessions_mutex_);
+                    active_sessions_.push_back(session);
+                }
+
+                task_queue_->Post([session]() {
+                    session->Start();
+                });
 
                 // 继续监听下一个连接
                 auto new_socket = std::make_shared<asio::ip::tcp::socket>(context_);
@@ -271,6 +297,7 @@ namespace Astra::apps {
         std::shared_ptr<LRUCache<std::string, std::string>> cache_;
         std::shared_ptr<concurrent::TaskQueue> task_queue_;
         std::vector<std::shared_ptr<Session>> active_sessions_;
+        std::mutex sessions_mutex_;
     };
 
 }// namespace Astra::apps

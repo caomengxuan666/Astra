@@ -157,6 +157,12 @@ namespace Astra::datastructures {
             ScheduleNextCleanup(interval);
         }
 
+        //  停止定期清理任务
+        void StopEvictionTask() {
+            eviction_active_ = false;// 添加这个标志
+        }
+
+
         bool HasKey(const Key &key) const {
             auto it = cache_.find(key);
             if (it == cache_.end()) return false;
@@ -234,14 +240,17 @@ namespace Astra::datastructures {
 
         // 安排下一次清理
         void ScheduleNextCleanup(std::chrono::seconds interval) {
-            if (eviction_task_queue_) {
+            if (eviction_task_queue_ && eviction_active_) {
                 eviction_task_queue_->Post([this, interval]() {
-                    CleanUpExpiredItems();
-                    ScheduleNextCleanup(interval);
+                    if (eviction_active_) {
+                        CleanUpExpiredItems();
+                        ScheduleNextCleanup(interval);
+                    }
                 });
             }
         }
 
+        std::atomic<bool> eviction_active_{true};
         size_t capacity_;
         size_t hot_key_threshold_;
         std::chrono::seconds ttl_;
@@ -275,6 +284,7 @@ namespace Astra::datastructures {
     // 将缓存保存到文件
     template<typename Key, typename Value>
     void SaveCacheToFile(const LRUCache<Key, Value> &cache, const std::string &filename) {
+        ZEN_LOG_INFO("Saving cache to file: {}", filename);
         std::ofstream out(filename);
         if (!out.is_open()) {
             ZEN_LOG_WARN("Failed to open file: {}", filename);
@@ -288,16 +298,19 @@ namespace Astra::datastructures {
             // 使用公共接口获取过期时间
             auto expire_time_opt = cache.GetExpiryTime(key);
             int64_t expire_time = 0;
-            
+
             if (expire_time_opt.has_value()) {
                 expire_time = std::chrono::duration_cast<std::chrono::milliseconds>(
-                    expire_time_opt.value()).count();
+                                      expire_time_opt.value())
+                                      .count();
             }
 
             out << key << " " << value << " " << expire_time << "\n";
+            ZEN_LOG_INFO("KEY :{} VALUE :{} EXPIRE_TIME :{}", key, value, expire_time);
         }
 
         out.close();
+        ZEN_LOG_INFO("Saving cache to file: {} successfully", filename);
     }
 
     // 从文件恢复缓存
