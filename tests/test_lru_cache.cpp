@@ -97,5 +97,121 @@ TEST(LRUCacheTest, StressTest_WithManyOperations) {
         }
     }
 
-    std::cout << "Hit count: " << hitCount << "/" << WriteIterations << std::endl;
+    ZEN_LOG_INFO("Hit count: {} / {}", hitCount, WriteIterations);
+}
+
+TEST(LRUCacheTest, RemoveExistingKey) {
+    LRUCache<int, std::string> cache(3);
+
+    cache.Put(1, "one");
+    EXPECT_TRUE(cache.Contains(1));
+
+    bool removed = cache.Remove(1);
+    EXPECT_TRUE(removed);
+    EXPECT_FALSE(cache.Contains(1));
+}
+
+TEST(LRUCacheTest, RemoveNonExistentKey) {
+    LRUCache<int, std::string> cache(3);
+    bool removed = cache.Remove(999);
+    EXPECT_FALSE(removed);// 不存在的键返回 false
+}
+
+// 测试TTL功能
+TEST(LRUCacheTest, TTLExpiration) {
+    LRUCache<int, int> cache(2, 100, std::chrono::seconds(1));// 容量2，热点阈值100，TTL 1秒
+
+    cache.Put(1, 10);
+    cache.Put(2, 20);
+
+    // 立即检查
+    EXPECT_EQ(cache.Get(1).value(), 10);
+    EXPECT_EQ(cache.Get(2).value(), 20);
+
+    // 等待超过TTL
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+
+    // 检查是否过期
+    EXPECT_FALSE(cache.Get(1).has_value());
+    EXPECT_FALSE(cache.Contains(1));
+    EXPECT_FALSE(cache.Get(2).has_value());
+    EXPECT_FALSE(cache.Contains(2));
+}
+
+// 测试混合TTL和LRU淘汰
+TEST(LRUCacheTest, MixedTTLAndLRU) {
+    LRUCache<int, int> cache(2, 100, std::chrono::seconds(5));// 容量2，TTL 5秒
+
+    cache.Put(1, 10);                         // 使用默认TTL
+    cache.Put(2, 20, std::chrono::seconds(1));// 自定义TTL 1秒
+
+    // 立即检查
+    EXPECT_EQ(cache.Get(1).value(), 10);
+    EXPECT_EQ(cache.Get(2).value(), 20);
+
+    // 等待1.5秒
+    std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+
+    // 检查定制TTL项是否过期
+    EXPECT_FALSE(cache.Get(2).has_value());
+
+    // 默认TTL项应该仍然存在
+    EXPECT_EQ(cache.Get(1).value(), 10);
+}
+
+// 测试定期清理任务
+TEST(LRUCacheTest, PeriodicCleanup) {
+    Astra::concurrent::TaskQueue task_queue;
+    LRUCache<int, int> cache(2, 100, std::chrono::seconds(1));// 容量2，TTL 1秒
+
+    // 启动清理任务（每1秒执行一次）
+    cache.StartEvictionTask(task_queue, std::chrono::seconds(1));
+
+    // 插入缓存项
+    cache.Put(1, 10);
+
+    // 等待足够时间让清理任务执行多次
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+
+    // 验证清理任务是否持续运行
+    // （如果清理任务正常工作，缓存项应该已经过期）
+    EXPECT_FALSE(cache.Get(1).has_value());
+}
+
+// 测试零TTL
+TEST(LRUCacheTest, ZeroTTL) {
+    LRUCache<int, int> cache(2, 100, std::chrono::seconds(0));// 零TTL
+
+    cache.Put(1, 10);
+
+    // 立即检查
+    EXPECT_EQ(cache.Get(1).value(), 10);
+
+    // 等待一点时间
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    // 零TTL项应该永不过期
+    EXPECT_TRUE(cache.Get(1).has_value());
+}
+
+// 测试TTL更新
+TEST(LRUCacheTest, TTLUpdateOnGet) {
+    LRUCache<int, int> cache(2, 100, std::chrono::seconds(1));// 容量2，TTL 1秒
+
+    cache.Put(1, 10);
+
+    // 立即检查
+    EXPECT_EQ(cache.Get(1).value(), 10);
+
+    // 等待500毫秒
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    // 再次获取应该重置TTL
+    EXPECT_EQ(cache.Get(1).value(), 10);
+
+    // 再等待800毫秒（总共1.3秒）
+    std::this_thread::sleep_for(std::chrono::milliseconds(800));
+
+    // 应该过期
+    EXPECT_FALSE(cache.Get(1).has_value());
 }

@@ -30,6 +30,7 @@ add_subdirectory(utils)
 add_subdirectory(concurrent)
 add_subdirectory(datastructures)
 add_subdirectory(third-party/mimalloc)
+add_subdirectory(Astra-CacheServer)
 
 #link_libraries(zenutils)
 

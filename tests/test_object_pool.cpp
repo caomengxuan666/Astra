@@ -1,7 +1,8 @@
+#include "core/astra.hpp"
+#include "datastructures/object_pool.hpp"
 #include <gtest/gtest.h>
-#include "../datastructures/object_pool.hpp"
 
-class TestObject {
+class TestObject : public ObjectBase<TestObject> {
 public:
     int value;
     std::atomic<int> ref_count;
@@ -9,7 +10,8 @@ public:
     TestObject() : value(0), ref_count(0) {}
 
     void cleanup() {
-        // 模拟资源清理操作
+        value = 0;// 明确重置 value 为 0
+        // 其他需要清理的状态
     }
 };
 
@@ -20,15 +22,15 @@ TEST(ObjectPoolTest, BasicFunctionality) {
     // 获取初始对象
     auto obj1 = pool.GetObject();
     ASSERT_NE(obj1, nullptr);
-    EXPECT_EQ(pool.GetObject().use_count(), 1);  // 确保新获取的对象引用计数正确
+    EXPECT_EQ(pool.GetObject().use_count(), 1);// 确保新获取的对象引用计数正确
 
     // 释放对象回池
     obj1.reset();
-    
+
     // 验证对象是否成功返回池中
     auto obj2 = pool.GetObject();
     ASSERT_NE(obj2, nullptr);
-    EXPECT_EQ(obj2.use_count(), 1);  // 确保从池中获取的对象引用计数正确
+    EXPECT_EQ(obj2.use_count(), 1);// 确保从池中获取的对象引用计数正确
 }
 
 // 测试对象池在高负载下的表现
@@ -36,7 +38,7 @@ TEST(ObjectPoolTest, HighLoadTest) {
     ObjectPool<TestObject> pool(2, 100);
 
     std::vector<std::shared_ptr<TestObject>> objects;
-    
+
     // 获取大量对象以测试高负载情况
     for (int i = 0; i < 100; ++i) {
         auto obj = pool.GetObject();
@@ -47,33 +49,30 @@ TEST(ObjectPoolTest, HighLoadTest) {
 
     // 释放所有对象回池
     objects.clear();
-    
+
     // 再次获取对象验证池的回收能力
     for (int i = 0; i < 50; ++i) {
         auto obj = pool.GetObject();
         ASSERT_NE(obj, nullptr);
-        EXPECT_EQ(obj->value, 0); // 验证清理后初始值正确
+        EXPECT_EQ(obj->value, 0);// 验证清理后初始值正确
     }
 }
 
-// 测试对象池分配和释放1GB内存的能力
 TEST(ObjectPoolTest, GBMemoryAllocation) {
-    // 计算1GB内存可以分配的对象数量
     size_t memorySize = 1024;
     size_t objSize = sizeof(TestObject);
     size_t objCount = memorySize / objSize;
 
-    ObjectPool<TestObject> pool(2, 10000); // 限制最大对象数为10000
+    ObjectPool<TestObject> pool(2, 10000);
 
     std::vector<std::shared_ptr<TestObject>> objects;
-    
-    // 尝试分配1GB内存 worth 的对象
+
     for (size_t i = 0; i < objCount; ++i) {
         auto obj = pool.GetObject();
         if (!obj) {
             // 如果达到池的最大容量，等待一段时间再重试
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            --i; // 重试当前索引
+            --i;// 重试当前索引
             continue;
         }
         ASSERT_NE(obj, nullptr);
@@ -83,16 +82,44 @@ TEST(ObjectPoolTest, GBMemoryAllocation) {
 
     // 释放所有对象回池
     objects.clear();
-    
+
     // 再次获取部分对象验证池的回收能力
     for (size_t i = 0; i < objCount / 2; ++i) {
         auto obj = pool.GetObject();
         ASSERT_NE(obj, nullptr);
-        EXPECT_EQ(obj->value, 0); // 验证清理后初始值正确
+        EXPECT_EQ(obj->value, 0);// 验证清理后初始值正确
     }
 }
 
-int main(int argc, char **argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+
+TEST(ObjectPoolTest, OptimizedLargeMemoryAllocation) {
+    constexpr size_t MB = 1024 * 1024;
+    constexpr size_t objectSize = sizeof(TestObject);
+    constexpr size_t objectsPerMB = MB / objectSize;
+    constexpr size_t targetObjects = 10 * objectsPerMB;
+
+    // 调整池大小为实际需要量的20%
+    ObjectPool<TestObject> pool(1, targetObjects / 5);
+
+    // 批量获取模式
+    constexpr size_t batchSize = objectsPerMB;// 每批1MB
+    size_t allocated = 0;
+
+    for (size_t batch = 0; batch < 10; ++batch) {
+        auto objects = pool.GetObjects(batchSize);
+        allocated += objects.size();
+
+        if (objects.empty()) {
+            // 内存不足时提前退出
+            break;
+        }
+
+        // 使用对象...
+        for (auto &obj: objects) {
+            obj->value = batch;
+        }
+    }
+
+    EXPECT_GT(allocated, targetObjects * 0.8)
+            << "Allocated only " << allocated << " out of " << targetObjects;
 }

@@ -8,6 +8,7 @@ OUTPUT_HEADER="$PROJECT_ROOT/core/third-party.h"
 # 排除路径
 EXCLUDE_DIRS=(
     "$PROJECT_ROOT/third-party/mimalloc"
+    "$PROJECT_ROOT/third-party/asio"
 )
 
 # 清空旧文件（如果存在）

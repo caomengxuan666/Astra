@@ -86,6 +86,7 @@
 #include "core/types.hpp"
 
 // Project utils headers
+#define ZEN_DEBUG
 #include "utils/logger.hpp"
 #include "utils/scope_guard.hpp"
 
@@ -95,8 +96,13 @@
 #include "datastructures/lock_free_buffer_base.hpp"
 #include "datastructures/lockfree_queue.hpp"
 #include "datastructures/lru_cache.hpp"
+#include "datastructures/object_pool.hpp"
 #include "datastructures/ring_buffer.hpp"
-#include "datastructures/thread_safe_lru_cache.hpp"
+
+//project concurrent headers
+#include "concurrent/task_flow.hpp"
+#include "concurrent/task_queue.hpp"
+
 
 // Third party libraries
 #define FMT_HEADER_ONLY
@@ -108,7 +114,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
-#else   //linux
+#else//linux
 #include <arpa/inet.h>
 #include <dlfcn.h>
 #include <netinet/in.h>

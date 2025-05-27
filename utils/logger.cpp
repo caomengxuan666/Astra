@@ -1,9 +1,6 @@
 #include "logger.hpp"
-#include "core/astra.hpp"
-#include <chrono>
 #include <fmt/color.h>
 #include <fmt/core.h>
-#include <iomanip>
 
 namespace Astra {
 
@@ -47,8 +44,25 @@ namespace Astra {
     }
 
     // Logger 实现
-    Logger::Logger() : level_(LogLevel::INFO) {
-        // 默认添加控制台输出
+    Logger::Logger() {
+// 编译期选择日志等级，优先级从低到高
+#if defined(ZEN_TRACE)
+        level_ = LogLevel::TRACE;
+#elif defined(ZEN_DEBUG)
+        level_ = LogLevel::DEBUG;
+#elif defined(ZEN_INFO)
+        level_ = LogLevel::INFO;
+#elif defined(ZEN_WARN)
+        level_ = LogLevel::WARN;
+#elif defined(ZEN_ERROR)
+        level_ = LogLevel::ERROR;
+#elif defined(ZEN_FATAL)
+        level_ = LogLevel::FATAL;
+#else
+        level_ = LogLevel::INFO;// 默认等级
+#endif
+
+        // 默认添加控制台输出器
         AddAppender(std::make_shared<ConsoleAppender>());
     }
 
