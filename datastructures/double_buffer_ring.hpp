@@ -2,6 +2,7 @@
 
 #include "ring_buffer.hpp"
 #include <atomic>
+#include <thread>
 
 namespace Astra::datastructures {
 

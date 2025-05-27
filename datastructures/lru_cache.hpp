@@ -327,17 +327,15 @@ namespace Astra::datastructures {
             std::istringstream iss(line);
             Key key;
             Value value;
-            int64_t expire_ms = 0;
+            int64_t expire_s = 0;
 
-            if (!(iss >> key >> value >> expire_ms)) continue;
+            if (!(iss >> key >> value >> expire_s)) continue;
 
-            // 插入缓存
-            cache.Put(key, value);// 使用 Put 方法保证 LRU 正确性
-
-            if (expire_ms > 0) {
-                using clock_type = std::chrono::steady_clock;
-                cache.expiration_times_[key] = clock_type::now() +
-                                               std::chrono::milliseconds(expire_ms);
+            // 使用 Put 方法保证 LRU 正确性，并传递 TTL 参数
+            if (expire_s > 0) {
+                cache.Put(key, value, std::chrono::seconds(expire_s));
+            } else {
+                cache.Put(key, value);
             }
         }
 

@@ -35,9 +35,9 @@ namespace Astra::apps {
             stopped_ = true;
 
             asio::error_code ec;
-            socket_.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
-            socket_.cancel(ec);// 取消所有异步操作
-            socket_.close(ec);
+            (void) socket_.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
+            (void) socket_.cancel(ec);// 取消所有异步操作
+            (void) socket_.close(ec);
         }
 
     private:
@@ -241,6 +241,10 @@ namespace Astra::apps {
             acceptor_.listen();
             ZEN_LOG_INFO("Server listening on port {}", port);
 
+            //加载CACHE
+            ZEN_LOG_INFO("Loading cache...");
+            LoadCacheFromFile();
+
             // 每次 accept 使用新 socket
             auto new_socket = std::make_shared<asio::ip::tcp::socket>(context_);
             DoAccept(new_socket);
@@ -256,6 +260,15 @@ namespace Astra::apps {
                 session->Stop();// 确保停止所有异步操作
             }
             active_sessions_.clear();
+            SaveToFile();
+        }
+
+        void SaveToFile(const std::string &filename = "cache_dump.rdb") {
+            Astra::datastructures::SaveCacheToFile(*cache_.get(), filename);
+        }
+
+        void LoadCacheFromFile(const std::string &filename = "cache_dump.rdb") {
+            Astra::datastructures::LoadCacheFromFile(*cache_.get(), filename);
         }
 
     private:
