@@ -6,12 +6,12 @@
 #include <datastructures/lockfree_queue.hpp>
 #include <functional>
 #include <future>
+#include <logger.hpp>
 #include <memory>
 #include <mutex>
 #include <queue>
 #include <thread>
 #include <vector>
-
 namespace Astra::concurrent {
 
     using namespace datastructures;

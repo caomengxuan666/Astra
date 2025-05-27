@@ -1,12 +1,14 @@
 #pragma once
 
 #include "concurrent/task_queue.hpp"
+#include "logger.hpp"
 #include <chrono>
+#include <fstream>
 #include <list>
 #include <optional>
+#include <sstream>
 #include <unordered_map>
 #include <vector>
-
 namespace Astra::datastructures {
 
     template<typename Key, typename Value>
@@ -252,5 +254,81 @@ namespace Astra::datastructures {
             std::unordered_map<Key, iterator> hot_keys;
         } hot_key_cache_;
     };
+
+    // -------------------------
+    // 非成员函数：持久化支持
+    // -------------------------
+
+    namespace detail {
+
+        // 工具函数：将时间点转为毫秒字符串
+        template<typename Clock>
+        std::string ToMilliString(const std::chrono::time_point<Clock> &tp) {
+            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                              tp.time_since_epoch())
+                              .count();
+            return std::to_string(ms);
+        }
+
+    }// namespace detail
+
+    // 将缓存保存到文件
+    template<typename Key, typename Value>
+    void SaveCacheToFile(const LRUCache<Key, Value> &cache, const std::string &filename) {
+        std::ofstream out(filename);
+        if (!out.is_open()) {
+            ZEN_LOG_WARN("Failed to open file: {}", filename);
+            return;
+        }
+
+        for (const auto &entry: cache.GetAllEntries()) {
+            const Key &key = entry.first;
+            const Value &value = entry.second;
+
+            // 使用公共接口获取过期时间
+            auto expire_time_opt = cache.GetExpiryTime(key);
+            int64_t expire_time = 0;
+            
+            if (expire_time_opt.has_value()) {
+                expire_time = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    expire_time_opt.value()).count();
+            }
+
+            out << key << " " << value << " " << expire_time << "\n";
+        }
+
+        out.close();
+    }
+
+    // 从文件恢复缓存
+    template<typename Key, typename Value>
+    void LoadCacheFromFile(LRUCache<Key, Value> &cache, const std::string &filename) {
+        std::ifstream in(filename);
+        if (!in.is_open()) {
+            ZEN_LOG_WARN("Failed to open file: {}", filename);
+            return;
+        }
+
+        std::string line;
+        while (std::getline(in, line)) {
+            std::istringstream iss(line);
+            Key key;
+            Value value;
+            int64_t expire_ms = 0;
+
+            if (!(iss >> key >> value >> expire_ms)) continue;
+
+            // 插入缓存
+            cache.Put(key, value);// 使用 Put 方法保证 LRU 正确性
+
+            if (expire_ms > 0) {
+                using clock_type = std::chrono::steady_clock;
+                cache.expiration_times_[key] = clock_type::now() +
+                                               std::chrono::milliseconds(expire_ms);
+            }
+        }
+
+        in.close();
+    }
 
 }// namespace Astra::datastructures

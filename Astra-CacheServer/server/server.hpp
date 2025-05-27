@@ -14,13 +14,23 @@ namespace Astra::apps {
     class Session : public std::enable_shared_from_this<Session> {
     public:
         explicit Session(asio::ip::tcp::socket socket,
-                         std::shared_ptr<Astra::datastructures::LRUCache<std::string, std::string>> cache)
+                         std::shared_ptr<LRUCache<std::string, std::string>> cache)
             : socket_(std::move(socket)),
-              handler_(std::make_shared<Astra::proto::RedisCommandHandler>(cache)) {}
+              handler_(std::make_shared<RedisCommandHandler>(cache)),
+              task_queue_(std::make_shared<concurrent::TaskQueue>(std::thread::hardware_concurrency())) {}
 
         void Start() {
             ZEN_LOG_INFO("Client connected from: {}", socket_.remote_endpoint().address().to_string());
-            DoRead();
+            task_queue_->Post([self = shared_from_this()]() {
+                self->DoRead();
+            });
+        }
+
+        void Stop() {
+            asio::error_code ec;
+            socket_.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
+            socket_.cancel(ec);// 取消所有异步操作
+            socket_.close(ec);
         }
 
     private:
@@ -44,7 +54,9 @@ namespace Astra::apps {
                                        std::string data = buffer_.substr(0, bytes_transferred);
                                        ZEN_LOG_DEBUG("Received raw data: {}", data);
                                        ProcessBuffer();
-                                       DoRead();
+                                       task_queue_->Post([self = shared_from_this()]() {
+                                           self->DoRead();
+                                       });
                                    });
         }
 
@@ -171,21 +183,17 @@ namespace Astra::apps {
 
         void WriteResponse(const std::string &response) {
             auto self(shared_from_this());
-            asio::async_write(socket_, asio::buffer(response),
-                              [this, self, response](std::error_code ec, std::size_t) {
-                                  if (ec) {
-                                      ZEN_LOG_WARN("Write error: {}", ec.message());
-                                  } else {
-                                      ZEN_LOG_INFO("Sent response: {}", response);
-                                  }
-                              });
+            task_queue_->Post([this, self, response]() {
+                asio::write(socket_, asio::buffer(response));
+                ZEN_LOG_INFO("Sent response: {}", response);
+            });
         }
 
         asio::ip::tcp::socket socket_;
         std::string buffer_;
         std::shared_ptr<Astra::proto::RedisCommandHandler> handler_;
         std::shared_ptr<concurrent::TaskQueue> task_queue_ =
-                std::make_shared<concurrent::TaskQueue>();
+                std::make_shared<concurrent::TaskQueue>(std::thread::hardware_concurrency());
 
         ParseState parse_state_ = ParseState::ReadingArrayHeader;
         int remaining_args_ = 0;
@@ -197,9 +205,9 @@ namespace Astra::apps {
     public:
         explicit AstraCacheServer(asio::io_context &context, size_t cache_size)
             : context_(context),
-              cache_(std::make_shared<Astra::datastructures::LRUCache<std::string, std::string>>(cache_size)),
-              acceptor_(context),
-              socket_(context) {
+              cache_(std::make_shared<LRUCache<std::string, std::string>>(cache_size)),
+              acceptor_(context) {
+            task_queue_ = std::make_shared<concurrent::TaskQueue>(std::thread::hardware_concurrency());
             cache_->StartEvictionTask(*task_queue_);
         }
 
@@ -210,27 +218,59 @@ namespace Astra::apps {
             acceptor_.bind(endpoint);
             acceptor_.listen();
             ZEN_LOG_INFO("Server listening on port {}", port);
-            DoAccept();
+
+            // 每次 accept 使用新 socket
+            auto new_socket = std::make_shared<asio::ip::tcp::socket>(context_);
+            DoAccept(new_socket);
+        }
+
+        void Stop() {
+            // 主动关闭 acceptor
+            asio::error_code ec;
+            acceptor_.close(ec);
+
+            // 停止任务队列
+            task_queue_->Stop();
+
+            // 停止所有 Session
+            for (auto &session: active_sessions_) {
+                session->Stop();
+            }
+            active_sessions_.clear();
+
+            // 停止 io_context
+            context_.stop();
         }
 
     private:
-        void DoAccept() {
-            acceptor_.async_accept(socket_,
-                                   [this](std::error_code ec) {
-                                       if (!ec) {
-                                           ZEN_LOG_INFO("New client accepted");
-                                           std::make_shared<Session>(std::move(socket_), cache_)->Start();
-                                       }
-                                       DoAccept();
-                                   });
-        }
+        void DoAccept(std::shared_ptr<asio::ip::tcp::socket> socket) {
+            acceptor_.async_accept(*socket, [this, socket](std::error_code ec) {
+                if (!ec) {
+                    ZEN_LOG_INFO("New client accepted");
 
+                    // 创建 Session 并加入活跃列表
+                    auto session = std::make_shared<Session>(std::move(*socket), cache_);
+                    {
+                        active_sessions_.push_back(session);
+                    }
+
+                    task_queue_->Post([session = std::move(session)]() mutable {
+                        session->Start();
+                    });
+                } else {
+                    ZEN_LOG_WARN("Accept error: {}", ec.message());
+                }
+
+                // 继续监听下一个连接
+                auto new_socket = std::make_shared<asio::ip::tcp::socket>(context_);
+                DoAccept(new_socket);
+            });
+        }
         asio::io_context &context_;
         asio::ip::tcp::acceptor acceptor_;
-        asio::ip::tcp::socket socket_;
-        std::shared_ptr<Astra::datastructures::LRUCache<std::string, std::string>> cache_;
-        std::shared_ptr<concurrent::TaskQueue> task_queue_ =
-                std::make_shared<concurrent::TaskQueue>();
+        std::shared_ptr<LRUCache<std::string, std::string>> cache_;
+        std::shared_ptr<concurrent::TaskQueue> task_queue_;
+        std::vector<std::shared_ptr<Session>> active_sessions_;
     };
 
 }// namespace Astra::apps
