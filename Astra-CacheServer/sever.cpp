@@ -9,6 +9,7 @@
 using namespace Astra;
 
 int main(int argc, char *argv[]) {
+    ZEN_SET_LEVEL(Astra::LogLevel::DEBUG);
     try {
         // 创建 io_service 线程池（线程在这里就启动了）
         auto pool = AsioIOServicePool::GetInstance();

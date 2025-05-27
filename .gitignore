@@ -1,3 +1,4 @@
 /build
 third-party/mimalloc/build
 third-party/mimalloc/bin
+*.rdb
