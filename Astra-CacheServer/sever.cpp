@@ -9,7 +9,7 @@ int main(int argc, char *argv[]) {
 
     try {
         asio::io_context io_context;
-        Astra::apps::AstraCacheServer server(io_context);
+        Astra::apps::AstraCacheServer server(io_context, 100000);
         int port = 8080;
         server.Start(port);
 

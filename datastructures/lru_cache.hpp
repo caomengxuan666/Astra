@@ -1,7 +1,6 @@
 #pragma once
 
 #include "concurrent/task_queue.hpp"
-#include "utils/logger.hpp"
 #include <chrono>
 #include <list>
 #include <optional>
@@ -38,6 +37,10 @@ namespace Astra::datastructures {
             // 修复参数错误：传递正确的迭代器而不是值
             UpdateHotKey(it->second, key);
             return std::make_optional(std::move(it->second->second));
+        }
+
+        void setCacheCapacity(size_t capacity) {
+            cache_.set_capacity(capacity);
         }
 
         // 插入或更新缓存项

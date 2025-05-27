@@ -74,11 +74,13 @@ namespace Astra::proto {
     class PingCommand : public ICommand {
     public:
         std::string Execute(const std::vector<std::string> &argv) override {
-            if (argv.size() == 1) return Astra::proto::RespBuilder::SimpleString("PONG");
-            else if (argv.size() == 2)
-                return "+" + argv[1] + "\r\n";
-            else
-                return "-ERR wrong number of arguments for 'PING'\r\n";
+            if (argv.size() == 1) {
+                return RespBuilder::SimpleString("PONG");
+            } else if (argv.size() == 2) {
+                return RespBuilder::SimpleString(argv[1]);
+            } else {
+                return RespBuilder::SimpleString("ERR wrong number of arguments for 'PING'");
+            }
         }
     };
 

@@ -195,11 +195,11 @@ namespace Astra::apps {
 
     class AstraCacheServer {
     public:
-        explicit AstraCacheServer(asio::io_context &context)
+        explicit AstraCacheServer(asio::io_context &context, size_t cache_size)
             : context_(context),
+              cache_(std::make_shared<Astra::datastructures::LRUCache<std::string, std::string>>(cache_size)),
               acceptor_(context),
-              socket_(context),
-              cache_(std::make_shared<Astra::datastructures::LRUCache<std::string, std::string>>(1000)) {
+              socket_(context) {
             cache_->StartEvictionTask(*task_queue_);
         }
 
