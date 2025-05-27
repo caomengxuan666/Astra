@@ -2,6 +2,8 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <optional>
+#include <chrono>
 
 namespace Astra::Client::Command {
 
@@ -25,15 +27,24 @@ namespace Astra::Client::Command {
     class SetCommand : public ICommand {
     public:
         SetCommand(const std::string &key, const std::string &value)
-            : key_(key), value_(value) {}
+            : key_(key), value_(value), ttl_(std::nullopt) {}
+
+        SetCommand(const std::string &key, const std::string &value, std::chrono::seconds ttl)
+            : key_(key), value_(value), ttl_(ttl) {}
 
         std::vector<std::string> GetArgs() const override {
-            return {"SET", key_, value_};
+            std::vector<std::string> args = {"SET", key_, value_};
+            if (ttl_.has_value()) {
+                args.push_back("EX");
+                args.push_back(std::to_string(ttl_.value().count()));
+            }
+            return args;
         }
 
     private:
         std::string key_;
         std::string value_;
+        std::optional<std::chrono::seconds> ttl_;
     };
 
     // GET命令

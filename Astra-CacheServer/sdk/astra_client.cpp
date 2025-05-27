@@ -128,39 +128,43 @@ namespace Astra::Client {
     }
 
     // 命令封装
-    const RespValue AstraClient::Set(const std::string &key, const std::string &value) noexcept {
+    RespValue AstraClient::Set(const std::string &key, const std::string &value) {
         return std::move(SendCommand(SetCommand(key, value)));
     }
 
-    const RespValue AstraClient::Get(const std::string &key) noexcept {
+    RespValue AstraClient::Set(const std::string &key, const std::string &value, std::chrono::seconds ttl) {
+        return std::move(SendCommand(SetCommand(key, value, ttl)));
+    }
+
+    RespValue AstraClient::Get(const std::string &key) {
         return std::move(SendCommand(GetCommand(key)));
     }
 
-    const RespValue AstraClient::Del(const std::vector<std::string> &keys) noexcept {
+    RespValue AstraClient::Del(const std::vector<std::string> &keys) {
         return std::move(SendCommand(DelCommand(keys)));
     }
 
-    const RespValue AstraClient::Ping() noexcept {
+    RespValue AstraClient::Ping() {
         return std::move(SendCommand(PingCommand()));
     }
 
-    const RespValue AstraClient::Keys(const std::string &pattern) noexcept {
+    RespValue AstraClient::Keys(const std::string &pattern) {
         return std::move(SendCommand(KeysCommand(pattern)));
     }
 
-    const RespValue AstraClient::TTL(const std::string &key) noexcept {
+    RespValue AstraClient::TTL(const std::string &key) {
         return std::move(SendCommand(TTLCommand(key)));
     }
 
-    const RespValue AstraClient::Exists(const std::string &key) noexcept {
+    RespValue AstraClient::Exists(const std::string &key) {
         return std::move(SendCommand(ExistsCommand(key)));
     }
 
-    const RespValue AstraClient::Incr(const std::string &key) noexcept {
+    RespValue AstraClient::Incr(const std::string &key) {
         return std::move(SendCommand(IncrCommand(key)));
     }
 
-    const RespValue AstraClient::Decr(const std::string &key) noexcept {
+    RespValue AstraClient::Decr(const std::string &key) {
         return std::move(SendCommand(DecrCommand(key)));
     }
 
