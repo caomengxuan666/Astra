@@ -13,10 +13,11 @@ namespace Astra {
                 style = fmt::fg(fmt::color::gray);
                 break;
             case LogLevel::DEBUG:
-                style = fmt::fg(fmt::color::blue);
+                style = fmt::fg(fmt::color::cyan);
                 break;
             case LogLevel::INFO:
-                style = fmt::fg(fmt::color::green);
+                style = fmt::fg(fmt::color::lime_green) | fmt::emphasis::bold;
+                break;
                 break;
             case LogLevel::WARN:
                 style = fmt::fg(fmt::color::orange);
@@ -25,15 +26,15 @@ namespace Astra {
                 style = fmt::fg(fmt::color::red) | fmt::emphasis::bold;
                 break;
             case LogLevel::FATAL:
-                style = fmt::fg(fmt::color::white) | fmt::bg(fmt::color::red) | fmt::emphasis::bold;
+                style = fmt::fg(fmt::color::crimson) | fmt::emphasis::bold;
                 break;
             default:
                 style = fmt::fg(fmt::color::black);
                 break;
         }
 
-        fmt::print(style, "{}\n", message);// 带颜色输出
-        fmt::print(fmt::text_style{}, ""); // 重置文本样式
+        fmt::print(style, "[{}] {}\n", Astra::Logger::GetInstance().CurrentTimestamp(), message);// 将message改为直接拼接
+        fmt::print(fmt::text_style{}, "");                                                       // 重置文本样式
     }
 
     // FileAppender 实现（暂留空，后续可完善）

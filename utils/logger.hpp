@@ -86,24 +86,27 @@ namespace Astra {
         void Fatal(const std::string &fmt, Args &&...args) {
             Log(LogLevel::FATAL, fmt::format(fmt, std::forward<Args>(args)...));
         }
+        
+        std::string CurrentTimestamp() const;
 
     private:
         Logger();
         ~Logger() = default;
 
-        std::string CurrentTimestamp();
 
+    private:
         LogLevel level_;
         std::vector<std::shared_ptr<LogAppender>> appenders_;
         std::mutex mutex_;
     };
 
-    // 获取当前时间戳（格式：YYYY-MM-DD HH:MM:SS）
-    inline std::string Logger::CurrentTimestamp() {
+    // 获取当前时间戳（格式：YYYY-MM-DD HH:MM:SS.EEE)
+    inline std::string Logger::CurrentTimestamp() const {
         auto now = std::chrono::system_clock::now();
         auto in_time_t = std::chrono::system_clock::to_time_t(now);
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 100;  // 改为两位毫秒
         std::stringstream ss;
-        ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d %X");
+        ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d %H:%M:%S.") << std::setfill('0') << std::setw(2) << ms.count();  // 调整宽度为2
         return ss.str();
     }
 
@@ -114,6 +117,7 @@ namespace Astra {
 #define ZEN_LOG_WARN(...) Astra::Logger::GetInstance().Warn(__VA_ARGS__)
 #define ZEN_LOG_ERROR(...) Astra::Logger::GetInstance().Error(__VA_ARGS__)
 #define ZEN_LOG_FATAL(...) Astra::Logger::GetInstance().Fatal(__VA_ARGS__)
+#define ZEN_SET_LEVEL(level) Astra::Logger::GetInstance().SetLevel(level)// 添加设置日志级别宏
 
 
 }// namespace Astra
