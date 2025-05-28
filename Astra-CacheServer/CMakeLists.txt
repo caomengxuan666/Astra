@@ -12,5 +12,9 @@ add_library(Astra-CacheSDK SHARED sdk/astra_client.cpp)
 
 add_subdirectory(examples)
 
-# install 写入到
+# install 写入
+
 install(TARGETS Astra-CacheServer RUNTIME DESTINATION bin)
+
+# install 指定release
+install(TARGETS Astra-CacheServer RUNTIME DESTINATION bin CONFIGURATIONS Release)

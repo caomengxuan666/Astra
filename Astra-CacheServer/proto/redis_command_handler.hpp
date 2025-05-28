@@ -20,8 +20,8 @@ namespace Astra::proto {
                                         cache) : cache_(std::move(cache)) {}
 
         std::unique_ptr<ICommand> CreateCommand(const std::string &cmd) {
-            //这傻逼文档，看了半天实现的返回的COMMAND结构都不对，只能注释掉不然redis的cli会崩溃
-            //if (cmd == "COMMAND") return std::make_unique<CommandCommand>();
+            if (cmd == "COMMAND") return std::make_unique<CommandCommand>();
+            if (cmd == "INFO") return std::make_unique<InfoCommand>();
             if (cmd == "GET") return std::make_unique<GetCommand>(cache_);
             if (cmd == "SET") return std::make_unique<SetCommand>(cache_);
             if (cmd == "DEL") return std::make_unique<DelCommand>(cache_);
@@ -30,7 +30,6 @@ namespace Astra::proto {
             if (cmd == "TTL") return std::make_unique<TtlCommand>(cache_);
             if (cmd == "INCR") return std::make_unique<IncrCommand>(cache_);
             if (cmd == "DECR") return std::make_unique<DecrCommand>(cache_);
-            if (cmd == "INFO") return std::make_unique<InfoCommand>();
             if (cmd == "EXISTS") return std::make_unique<ExistsCommand>(cache_);
 
             return nullptr;

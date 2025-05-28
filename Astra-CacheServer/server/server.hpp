@@ -204,7 +204,7 @@ namespace Astra::apps {
                                           ZEN_LOG_WARN("Failed to send response: {}", ec.message());
                                           //self->Stop();// 可选：写入失败时关闭连接
                                       } else {
-                                          ZEN_LOG_INFO("Sent response: {}", response);
+                                          ZEN_LOG_DEBUG("Sent response: {}", response);
                                       }
                                   });
             });

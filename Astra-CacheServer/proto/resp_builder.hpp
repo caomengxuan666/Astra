@@ -12,7 +12,14 @@ namespace Astra::proto {
         static std::string Array(const std::vector<std::string> &elements);
         static std::string SimpleString(const std::string &str);
         static std::string Nil();
+        static std::string Error(const std::string &str);
     };
+
+// 实现错误响应格式
+    inline std::string RespBuilder::Error(const std::string &str) {
+        return "-ERR " + str + "\r\n";
+    }
+
     inline std::string RespBuilder::BulkString(const std::string &str) {
         return "$" + std::to_string(str.size()) + "\r\n" + str + "\r\n";
     }

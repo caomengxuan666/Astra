@@ -1,6 +1,7 @@
 #pragma once
-#include "CommandResponseBuilder"
+#include "CommandResponseBuilder.hpp"
 #include "ICommand.hpp"
+#include "command_parser.hpp"
 #include "resp_builder.hpp"
 #include <chrono>
 #include <datastructures/lru_cache.hpp>
@@ -14,7 +15,7 @@ namespace Astra::proto {
         explicit GetCommand(std::shared_ptr<LRUCache<std::string, std::string>> cache) : cache_(std::move(cache)) {}
         std::string Execute(const std::vector<std::string> &argv) override {
             if (argv.size() < 2) {
-                return "-ERR wrong number of arguments for 'GET'\r\n";
+                return RespBuilder::Error("wrong number of arguments for 'GET'");
             }
             auto val = cache_->Get(argv[1]);
             if (!val) {
@@ -31,7 +32,7 @@ namespace Astra::proto {
     public:
         explicit SetCommand(std::shared_ptr<LRUCache<std::string, std::string>> cache) : cache_(std::move(cache)) {}
         std::string Execute(const std::vector<std::string> &argv) override {
-            if (argv.size() < 3) return RespBuilder::SimpleString("ERR wrong number of arguments for 'SET'");
+            if (argv.size() < 3) return RespBuilder::Error("wrong number of arguments for 'SET'");
 
             std::chrono::seconds ttl(0);
 
@@ -39,13 +40,13 @@ namespace Astra::proto {
                 try {
                     ttl = std::chrono::seconds(std::stoi(argv[4]));
                 } catch (...) {
-                    return RespBuilder::SimpleString("ERR invalid expire time");
+                    return RespBuilder::Error("invalid expire time");
                 }
                 cache_->Put(argv[1], argv[2], ttl);
             } else if (argv.size() == 3) {
                 cache_->Put(argv[1], argv[2], ttl);
             } else {
-                return RespBuilder::SimpleString("ERR syntax error");
+                return RespBuilder::Error("syntax error");
             }
             return RespBuilder::SimpleString("OK");
         }
@@ -58,7 +59,7 @@ namespace Astra::proto {
     public:
         explicit DelCommand(std::shared_ptr<LRUCache<std::string, std::string>> cache) : cache_(std::move(cache)) {}
         std::string Execute(const std::vector<std::string> &argv) override {
-            if (argv.size() < 2) return "-ERR wrong number of arguments for 'DEL'\r\n";
+            if (argv.size() < 2) return RespBuilder::Error("wrong number of arguments for 'DEL'");
 
             size_t count = 0;
             for (size_t i = 1; i < argv.size(); ++i) {
@@ -79,7 +80,7 @@ namespace Astra::proto {
             } else if (argv.size() == 2) {
                 return RespBuilder::SimpleString(argv[1]);
             } else {
-                return RespBuilder::SimpleString("ERR wrong number of arguments for 'PING'");
+                return RespBuilder::Error("ERR wrong number of arguments for 'PING'");
             }
         }
     };
@@ -91,14 +92,27 @@ namespace Astra::proto {
 
         std::string Execute(const std::vector<std::string> &argv) override {
             std::vector<CommandInfo> commands = {
-                    {"GET", 2, {"readonly", "fast"}, 1, 1, 1, 0, "string"},
-                    {"SET", -3, {"write"}, 1, 1, 1, 0, "string"},
-                    {"DEL", -2, {"write"}, 1, 1, 1, 0, "keyspace"},
-                    {"PING", 1, {"readonly", "fast"}, 0, 0, 0, 0, "connection"},
-                    {"COMMAND", 0, {"readonly", "admin"}, 0, 0, 0, 0, "server"},
-                    {"INFO", -1, {"readonly"}, 0, 0, 0, 0, "server"}};
+                    {"GET", 2, {"readonly", "fast"}, 1, 1, 1, 0, "string", "Get the value of a key", "1.0.0", "O(1)", {}, {}},
+                    {"SET", -3, {"write"}, 1, 1, 1, 0, "string", "Set the string value of a key", "1.0.0", "O(1)", {}, {}},
+                    {"DEL", -2, {"write"}, 1, 1, 1, 0, "keyspace", "Delete a key", "1.0.0", "O(N)", {}, {}},
+                    {"PING", 1, {"readonly", "fast"}, 0, 0, 0, 0, "connection", "Ping the server", "1.0.0", "O(1)", {}, {}},
+                    {"INFO", -1, {"readonly"}, 0, 0, 0, 0, "server", "Get information and statistics about the server", "1.0.0", "O(1)", {}, {}},
+                    {"KEYS", -2, {"readonly"}, 1, 1, 1, 0, "keyspace", "Find all keys matching the given pattern", "1.0.0", "O(N)", {}, {}},
+                    {"TTL", 2, {"readonly"}, 1, 1, 1, 0, "keyspace", "Get the time to live for a key", "1.0.0", "O(1)", {}, {}},
+                    {"INCR", 2, {"write"}, 1, 1, 1, 0, "string", "Increment the integer value of a key by one", "1.0.0", "O(1)", {}, {}},
+                    {"DECR", 2, {"write"}, 1, 1, 1, 0, "string", "Decrement the integer value of a key by one", "1.0.0", "O(1)", {}, {}},
+                    {"EXISTS", 2, {"readonly"}, 1, 1, 1, 0, "keyspace", "Determine if a key exists", "1.0.0", "O(1)", {}, {}},
+                    {"COMMAND", 0, {"readonly", "admin"}, 0, 0, 0, 0, "server", "Get array of Redis command details", "2.8.13", "O(N)", {}, {}}};
 
-            return CommandResponseBuilder::BuildCommandListResponse(commands);
+            if (IsSubCommand(argv,"DOCS")) {
+                std::vector<std::string> requestedCommands;
+                for (size_t i = 2; i < argv.size(); ++i) {
+                    requestedCommands.push_back(argv[i]);
+                }
+                return CommandResponseBuilder::BuildCommandDocsResponse(commands, requestedCommands);
+            } else {
+                return CommandResponseBuilder::BuildCommandListResponse(commands);
+            }
         }
     };
 
@@ -135,7 +149,7 @@ namespace Astra::proto {
 
         std::string Execute(const std::vector<std::string> &argv) override {
             if (argv.size() < 2 || argv[1] != "*") {
-                return Astra::proto::RespBuilder::SimpleString("ERR this implementation only supports 'KEYS *'");
+                return Astra::proto::RespBuilder::Error("ERR this implementation only supports 'KEYS *'");
             }
 
             auto allKeys = cache_->GetKeys();
@@ -158,7 +172,7 @@ namespace Astra::proto {
 
         std::string Execute(const std::vector<std::string> &argv) override {
             if (argv.size() != 2) {
-                return RespBuilder::SimpleString("ERR wrong number of arguments for 'TTL'");
+                return RespBuilder::Error("ERR wrong number of arguments for 'TTL'");
             }
 
             const std::string &key = argv[1];
@@ -192,7 +206,7 @@ namespace Astra::proto {
 
         std::string Execute(const std::vector<std::string> &argv) override {
             if (argv.size() != 2) {
-                return RespBuilder::SimpleString("ERR wrong number of arguments for 'INCR'");
+                return RespBuilder::Error("ERR wrong number of arguments for 'INCR'");
             }
 
             const std::string &key = argv[1];
@@ -209,10 +223,10 @@ namespace Astra::proto {
             errno = 0;
             current = std::strtoll(val->c_str(), &end, 10);
             if (errno == ERANGE || current < LLONG_MIN || current > LLONG_MAX) {
-                return RespBuilder::SimpleString("ERR value is not an integer or out of range");
+                return RespBuilder::Error("ERR value is not an integer or out of range");
             }
             if (*end != '\0') {
-                return RespBuilder::SimpleString("ERR value is not an integer or out of range");
+                return RespBuilder::Error("ERR value is not an integer or out of range");
             }
 
             current += 1;
@@ -231,7 +245,7 @@ namespace Astra::proto {
 
         std::string Execute(const std::vector<std::string> &argv) override {
             if (argv.size() != 2) {
-                return RespBuilder::SimpleString("ERR wrong number of arguments for 'DECR'");
+                return RespBuilder::Error("ERR wrong number of arguments for 'DECR'");
             }
 
             const std::string &key = argv[1];
@@ -248,10 +262,10 @@ namespace Astra::proto {
             errno = 0;
             current = std::strtoll(val->c_str(), &end, 10);
             if (errno == ERANGE || current < LLONG_MIN || current > LLONG_MAX) {
-                return RespBuilder::SimpleString("ERR value is not an integer or out of range");
+                return RespBuilder::Error("ERR value is not an integer or out of range");
             }
             if (*end != '\0') {
-                return RespBuilder::SimpleString("ERR value is not an integer or out of range");
+                return RespBuilder::Error("ERR value is not an integer or out of range");
             }
 
             current -= 1;
@@ -270,7 +284,7 @@ namespace Astra::proto {
 
         std::string Execute(const std::vector<std::string> &argv) override {
             if (argv.size() != 2) {
-                return RespBuilder::SimpleString("ERR wrong number of arguments for 'EXISTS'");
+                return RespBuilder::Error("ERR wrong number of arguments for 'EXISTS'");
             }
 
             const std::string &key = argv[1];

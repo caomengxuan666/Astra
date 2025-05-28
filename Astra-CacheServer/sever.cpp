@@ -1,5 +1,6 @@
 #include "args.hxx"
 #include "core/astra.hpp"
+#include "fmt/color.h"
 #include "network/io_context_pool.hpp"
 #include "server/server.hpp"
 #include "utils/logger.hpp"
@@ -13,7 +14,7 @@
 using namespace Astra;
 
 // Map log level string to LogLevel enum
-Astra::LogLevel parseLogLevel(const std::string &levelStr) {
+inline static Astra::LogLevel parseLogLevel(const std::string &levelStr) {
     static const std::unordered_map<std::string, Astra::LogLevel> levels = {
             {"trace", Astra::LogLevel::TRACE},
             {"debug", Astra::LogLevel::DEBUG},
@@ -27,6 +28,25 @@ Astra::LogLevel parseLogLevel(const std::string &levelStr) {
         return it->second;
     }
     throw std::invalid_argument("Invalid log level: " + levelStr);
+}
+
+void writeLogoToConsole(int port, size_t maxLRUSize, const std::string &persistenceFile) {
+    // Print the ASCII logo in cyan
+    fmt::print(fg(fmt::color::cyan), R"(
+ █████╗ ███████╗████████╗██████╗  █████╗ 
+██╔══██╗██╔════╝╚══██╔══╝██╔══██╗██╔══██╗
+███████║███████╗   ██║   ██████╔╝███████║
+██╔══██║╚════██║   ██║   ██╔══██╗██╔══██║
+██║  ██║███████║   ██║   ██║  ██║██║  ██║
+╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝
+)");
+    // Print the welcome message in yellow
+    fmt::print(fg(fmt::color::light_yellow), "Welcome to Astra-CacheServer!\n\n");
+
+    // Print server info in default color
+    fmt::print("Port:             {}\n", port);
+    fmt::print("Max LRU Size:     {}\n", maxLRUSize);
+    fmt::print("Persistence File: {}\n\n", persistenceFile);
 }
 
 int main(int argc, char *argv[]) {
@@ -64,6 +84,7 @@ int main(int argc, char *argv[]) {
         std::cerr << e.what() << std::endl;
         return 2;
     }
+    writeLogoToConsole(listeningPort, lru_max_size, persistence_file_name);
 
     try {
         // 创建 io_service 线程池（线程在这里就启动了）

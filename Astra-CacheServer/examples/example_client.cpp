@@ -4,7 +4,7 @@
 
 int main() {
     try {
-        Astra::Client::AstraClient client("127.0.0.1", 8080);
+        Astra::Client::AstraClient client("127.0.0.1", 6379);
 
         // 基础测试
         std::cout << "PING: " << client.Ping().str << std::endl;
