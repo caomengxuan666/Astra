@@ -11,3 +11,6 @@ target_link_libraries(Astra-CacheServer zenutils)
 add_library(Astra-CacheSDK SHARED sdk/astra_client.cpp)
 
 add_subdirectory(examples)
+
+# install 写入到
+install(TARGETS Astra-CacheServer RUNTIME DESTINATION bin)

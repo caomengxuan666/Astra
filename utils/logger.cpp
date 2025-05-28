@@ -16,7 +16,7 @@ namespace Astra {
                 style = fmt::fg(fmt::color::cyan);
                 break;
             case LogLevel::INFO:
-                style = fmt::fg(fmt::color::lime_green) | fmt::emphasis::bold;
+                style = fmt::fg(fmt::color::lime_green);
                 break;
                 break;
             case LogLevel::WARN:

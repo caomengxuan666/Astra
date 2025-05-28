@@ -176,6 +176,8 @@ TEST(LRUCacheTest, PeriodicCleanup) {
     // 验证清理任务是否持续运行
     // （如果清理任务正常工作，缓存项应该已经过期）
     EXPECT_FALSE(cache.Get(1).has_value());
+
+    cache.StopEvictionTask();
 }
 
 // 测试零TTL

@@ -225,7 +225,7 @@ namespace Astra::apps {
 
     class AstraCacheServer {
     public:
-        explicit AstraCacheServer(asio::io_context &context, size_t cache_size)
+        explicit AstraCacheServer(asio::io_context &context, size_t cache_size,const std::string &persistent_file="cache_dump.rdb")
             : context_(context),
               cache_(std::make_shared<LRUCache<std::string, std::string>>(cache_size)),
               acceptor_(context) {
@@ -243,7 +243,7 @@ namespace Astra::apps {
 
             //加载CACHE
             ZEN_LOG_INFO("Loading cache...");
-            LoadCacheFromFile();
+            LoadCacheFromFile(persistence_db_name_);
 
             // 每次 accept 使用新 socket
             auto new_socket = std::make_shared<asio::ip::tcp::socket>(context_);
@@ -260,7 +260,7 @@ namespace Astra::apps {
                 session->Stop();// 确保停止所有异步操作
             }
             active_sessions_.clear();
-            SaveToFile();
+            SaveToFile(persistence_db_name_);
         }
 
         void SaveToFile(const std::string &filename = "cache_dump.rdb") {
@@ -305,6 +305,8 @@ namespace Astra::apps {
                 DoAccept(new_socket);
             });
         }
+
+        std::string persistence_db_name_="cache_dump.rdb";
         asio::io_context &context_;
         asio::ip::tcp::acceptor acceptor_;
         std::shared_ptr<LRUCache<std::string, std::string>> cache_;
