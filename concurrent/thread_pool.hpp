@@ -54,7 +54,8 @@ namespace Astra::concurrent {
         }
 
         template<typename F, typename... Args>
-        [[nodiscard]] std::future<std::invoke_result_t<F, Args...>> SubmitWithPriority(int priority, F &&f, Args &&...args) {
+        [[nodiscard]] std::future<std::invoke_result_t<F, Args...>>
+        SubmitWithPriority(int priority, F &&f, Args &&...args) {
             using return_type = std::invoke_result_t<F, Args...>;
 
             auto task = std::make_shared<std::packaged_task<return_type()>>(
@@ -62,29 +63,34 @@ namespace Astra::concurrent {
 
             std::future<return_type> result = task->get_future();
 
-            size_t min_index = 0;
-            for (size_t i = 1; i < workers_.size(); ++i) {
-                if (workers_[i]->local_tasks_.size() < workers_[min_index]->local_tasks_.size()) {
-                    min_index = i;
-                }
-            }
+            // 改进的任务分发策略
+            static thread_local size_t last_worker = 0;
+            size_t target_worker = (last_worker + 1) % workers_.size();
+            last_worker = target_worker;
 
             {
-                std::unique_lock<std::mutex> lock(workers_[min_index]->tasks_mutex_);
-                workers_[min_index]->local_tasks_.push(Task{[task]() { (*task)(); }, priority});
+                std::lock_guard<std::mutex> lock(workers_[target_worker]->tasks_mutex_);
+                workers_[target_worker]->local_tasks_.push(
+                        Task{[task]() { (*task)(); }, priority});
+                workers_[target_worker]->has_tasks.store(true);
             }
+            workers_[target_worker]->cv.notify_one();
 
-            condition_.notify_one();
             return result;
         }
 
         template<typename F, typename Callback>
         void SubmitWithCallback(F &&f, Callback &&cb) {
+            if (paused_.load(std::memory_order_acquire)) {
+                // 如果处于暂停状态，直接执行回调（或者可以选择排队）
+                cb();
+                return;
+            }
+
             auto task = std::make_shared<std::function<void()>>(std::forward<F>(f));
             auto callback = std::forward<Callback>(cb);
 
             if (!task || !*task) {
-                // 防止空任务被推入
                 ZEN_LOG_WARN("Submitted empty task to thread pool");
                 return;
             }
@@ -96,7 +102,7 @@ namespace Astra::concurrent {
                 callback();
             });
 
-            condition_.notify_one();// ✅ 唤醒线程处理任务
+            condition_.notify_one();
         }
 
         void Pause() {
@@ -110,82 +116,160 @@ namespace Astra::concurrent {
 
         void Stop() {
             stop_flag_.store(true, std::memory_order_release);
-            condition_.notify_all();
+
+            // 唤醒所有Worker
+            for (auto &worker: workers_) {
+                worker->cv.notify_all();
+            }
+
+            // 清空全局队列
+            std::function<void()> task;
+            while (tasks_.Pop(task)) {
+                task();// 执行剩余任务
+            }
         }
 
     private:
         struct Worker {
             std::priority_queue<Task> local_tasks_;
-            mutable std::mutex tasks_mutex_;
+            std::mutex tasks_mutex_;
+            std::condition_variable cv;        // 每个Worker独立的唤醒机制
+            std::atomic<bool> has_tasks{false};// 无锁状态检查
         };
 
         void WorkerLoop(size_t worker_id) {
+            auto &current_worker = *workers_[worker_id];
+            ZEN_LOG_DEBUG("Worker {} started", worker_id);
+
             while (!stop_flag_.load(std::memory_order_acquire)) {
+                // ===== 1. 检查暂停状态 =====
                 if (paused_.load(std::memory_order_acquire)) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
                     continue;
                 }
 
-                Task task;
-                bool success = false;
+                // ===== 2. 处理本地任务队列 =====
+                Task local_task;
+                bool has_local_task = false;
 
-                {
-                    std::unique_lock<std::mutex> lock(workers_[worker_id]->tasks_mutex_);
-                    if (!workers_[worker_id]->local_tasks_.empty()) {
-                        task = workers_[worker_id]->local_tasks_.top();
-                        workers_[worker_id]->local_tasks_.pop();
-                        success = true;
+                {// 锁作用域开始
+                    std::unique_lock<std::mutex> lock(current_worker.tasks_mutex_);
+
+                    // 等待条件（带超时避免死锁）
+                    if (current_worker.cv.wait_for(lock, std::chrono::milliseconds(100),
+                                                   [&] {
+                                                       return stop_flag_.load() ||
+                                                              !current_worker.local_tasks_.empty();
+                                                   })) {
+                        if (!current_worker.local_tasks_.empty()) {
+                            local_task = std::move(current_worker.local_tasks_.top());
+                            current_worker.local_tasks_.pop();
+                            has_local_task = true;
+                            current_worker.has_tasks.store(
+                                    !current_worker.local_tasks_.empty(),
+                                    std::memory_order_release);
+                        }
                     }
+                }// 锁作用域结束
+
+                // 执行本地任务前再次检查暂停状态
+                if (has_local_task && local_task.func && !paused_.load(std::memory_order_acquire)) {
+                    try {
+                        local_task.func();
+                    } catch (const std::exception &e) {
+                        ZEN_LOG_ERROR("Worker {} task failed: {}", worker_id, e.what());
+                    }
+                    continue;// 优先处理本地任务
                 }
 
-                if (!success) {
-                    // 尝试从其他线程窃取任务
-                    for (size_t i = 0; i < workers_.size(); ++i) {
-                        if (i == worker_id) continue;
+                // ===== 3. 任务窃取机制 =====
+                if (!stop_flag_.load(std::memory_order_acquire) && !paused_.load(std::memory_order_acquire)) {
+                    const size_t steal_attempts = 3;// 最大尝试次数
+                    for (size_t attempt = 0; attempt < steal_attempts; ++attempt) {
+                        const size_t target_id = (worker_id + attempt) % workers_.size();
+                        if (target_id == worker_id) continue;
 
-                        std::unique_lock<std::mutex> lock(workers_[i]->tasks_mutex_);
-                        if (!workers_[i]->local_tasks_.empty()) {
-                            task = workers_[i]->local_tasks_.top();
-                            workers_[i]->local_tasks_.pop();
-                            success = true;
-                            break;
+                        auto &target_worker = *workers_[target_id];
+
+                        // 快速检查（无锁）
+                        if (!target_worker.has_tasks.load(std::memory_order_acquire)) {
+                            continue;
+                        }
+
+                        // 尝试加锁（非阻塞）
+                        std::unique_lock<std::mutex> lock(
+                                target_worker.tasks_mutex_,
+                                std::try_to_lock);
+
+                        if (lock && !target_worker.local_tasks_.empty()) {
+                            Task stolen_task = std::move(target_worker.local_tasks_.top());
+                            target_worker.local_tasks_.pop();
+                            target_worker.has_tasks.store(
+                                    !target_worker.local_tasks_.empty(),
+                                    std::memory_order_release);
+                            lock.unlock();
+
+                            if (stolen_task.func && !paused_.load(std::memory_order_acquire)) {
+                                try {
+                                    stolen_task.func();
+                                } catch (const std::exception &e) {
+                                    ZEN_LOG_ERROR("Worker {} stolen task failed: {}",
+                                                  worker_id, e.what());
+                                }
+                                break;// 成功窃取后退出尝试
+                            }
                         }
                     }
                 }
 
-                if (!success) {
-                    // ✅ 最后尝试从全局队列消费任务
-                    std::function<void()> global_task;
-                    if (tasks_.Pop(global_task)) {
+                // ===== 4. 处理全局队列 =====
+                std::function<void()> global_task;
+                if (tasks_.Pop(global_task) && !paused_.load(std::memory_order_acquire)) {
+                    try {
                         global_task();
-                        success = true;
+                    } catch (const std::exception &e) {
+                        ZEN_LOG_ERROR("Worker {} global task failed: {}",
+                                      worker_id, e.what());
                     }
+                    continue;
                 }
 
-                if (success && task.func) {
-                    task.func();// ✅ 增加空检查
-                } else {
-                    std::this_thread::yield();
-                }
+                // ===== 5. 后备等待策略 =====
+                std::this_thread::yield();
             }
+
+            // ===== 清理阶段 =====
+            ZEN_LOG_DEBUG("Worker {} shutting down", worker_id);
 
             // 清空本地任务
             while (true) {
                 Task task;
                 {
-                    std::unique_lock<std::mutex> lock(workers_[worker_id]->tasks_mutex_);
-                    if (workers_[worker_id]->local_tasks_.empty()) break;
-                    task = workers_[worker_id]->local_tasks_.top();
-                    workers_[worker_id]->local_tasks_.pop();
+                    std::lock_guard<std::mutex> lock(current_worker.tasks_mutex_);
+                    if (current_worker.local_tasks_.empty()) break;
+                    task = std::move(current_worker.local_tasks_.top());
+                    current_worker.local_tasks_.pop();
                 }
-                task.func();
+                if (task.func) {
+                    try {
+                        task.func();
+                    } catch (...) {
+                        // 确保异常不会传播出析构函数
+                    }
+                }
             }
 
             // 清空全局任务（可选）
             std::function<void()> global_task;
             while (tasks_.Pop(global_task)) {
-                global_task();
+                try {
+                    global_task();
+                } catch (...) {
+                    // 确保异常不会传播出析构函数
+                }
             }
+
+            ZEN_LOG_DEBUG("Worker {} exited", worker_id);
         }
 
         void JoinAll() {

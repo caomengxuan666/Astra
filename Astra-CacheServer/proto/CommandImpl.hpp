@@ -104,7 +104,7 @@ namespace Astra::proto {
                     {"EXISTS", 2, {"readonly"}, 1, 1, 1, 0, "keyspace", "Determine if a key exists", "1.0.0", "O(1)", {}, {}},
                     {"COMMAND", 0, {"readonly", "admin"}, 0, 0, 0, 0, "server", "Get array of Redis command details", "2.8.13", "O(N)", {}, {}}};
 
-            if (IsSubCommand(argv,"DOCS")) {
+            if (IsSubCommand(argv, "DOCS")) {
                 std::vector<std::string> requestedCommands;
                 for (size_t i = 2; i < argv.size(); ++i) {
                     requestedCommands.push_back(argv[i]);

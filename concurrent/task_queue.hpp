@@ -22,7 +22,6 @@ namespace Astra::concurrent {
 
             std::future<return_type> result = task->get_future();
 
-            // 提交到线程池执行
             (void) pool_.Submit([task]() { (*task)(); });
 
             return result;

@@ -51,6 +51,7 @@ namespace Astra {
         static Logger &GetInstance();
 
         void SetLevel(LogLevel level);
+        LogLevel GetLevel() const;
         void AddAppender(std::shared_ptr<LogAppender> appender);
 
         // 写日志接口
@@ -88,6 +89,8 @@ namespace Astra {
         }
 
         std::string CurrentTimestamp() const;
+
+        const static std::string LevelToString(LogLevel level);
 
     private:
         Logger();

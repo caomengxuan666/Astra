@@ -15,7 +15,7 @@ namespace Astra::proto {
         static std::string Error(const std::string &str);
     };
 
-// 实现错误响应格式
+    // 实现错误响应格式
     inline std::string RespBuilder::Error(const std::string &str) {
         return "-ERR " + str + "\r\n";
     }

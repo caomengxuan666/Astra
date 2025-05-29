@@ -14,10 +14,11 @@ namespace Astra::apps {
     class Session : public std::enable_shared_from_this<Session> {
     public:
         explicit Session(asio::ip::tcp::socket socket,
-                         std::shared_ptr<LRUCache<std::string, std::string>> cache)
+                         std::shared_ptr<LRUCache<std::string, std::string>> cache,
+                         std::shared_ptr<concurrent::TaskQueue> global_task_queue)
             : socket_(std::move(socket)),
               handler_(std::make_shared<RedisCommandHandler>(cache)),
-              task_queue_(std::make_shared<concurrent::TaskQueue>(std::thread::hardware_concurrency())) {}
+              task_queue_(std::move(global_task_queue)) {}
 
         void Start() {
             ZEN_LOG_INFO("Client connected from: {}", socket_.remote_endpoint().address().to_string());
@@ -209,13 +210,11 @@ namespace Astra::apps {
                                   });
             });
         }
-
+        std::shared_ptr<concurrent::TaskQueue> task_queue_;
         bool stopped_ = false;// 控制状态机是否已关闭
         asio::ip::tcp::socket socket_;
         std::string buffer_;
         std::shared_ptr<Astra::proto::RedisCommandHandler> handler_;
-        std::shared_ptr<concurrent::TaskQueue> task_queue_ =
-                std::make_shared<concurrent::TaskQueue>(std::thread::hardware_concurrency());
 
         ParseState parse_state_ = ParseState::ReadingArrayHeader;
         int remaining_args_ = 0;
@@ -225,11 +224,14 @@ namespace Astra::apps {
 
     class AstraCacheServer {
     public:
-        explicit AstraCacheServer(asio::io_context &context, size_t cache_size,const std::string &persistent_file="cache_dump.rdb")
+        explicit AstraCacheServer(asio::io_context &context, size_t cache_size,
+                                  const std::string &persistent_file = "cache_dump.rdb")
             : context_(context),
               cache_(std::make_shared<LRUCache<std::string, std::string>>(cache_size)),
               acceptor_(context) {
-            task_queue_ = std::make_shared<concurrent::TaskQueue>(std::thread::hardware_concurrency());
+            // 使用同一个 task_queue_
+            task_queue_ = std::make_shared<concurrent::TaskQueue>(
+                    std::thread::hardware_concurrency());
             cache_->StartEvictionTask(*task_queue_);
         }
 
@@ -260,6 +262,8 @@ namespace Astra::apps {
                 session->Stop();// 确保停止所有异步操作
             }
             active_sessions_.clear();
+            //停止所有异步队列
+            task_queue_->Stop();
             SaveToFile(persistence_db_name_);
         }
 
@@ -290,7 +294,8 @@ namespace Astra::apps {
                 ZEN_LOG_INFO("New client accepted");
 
                 // 创建 Session 并加入活跃列表
-                auto session = std::make_shared<Session>(std::move(*socket), cache_);
+                auto session = std::make_shared<Session>(
+                        std::move(*socket), cache_, task_queue_);
                 {
                     std::lock_guard<std::mutex> lock(sessions_mutex_);
                     active_sessions_.push_back(session);
@@ -306,10 +311,11 @@ namespace Astra::apps {
             });
         }
 
-        std::string persistence_db_name_="cache_dump.rdb";
+        std::string persistence_db_name_ = "cache_dump.rdb";
         asio::io_context &context_;
         asio::ip::tcp::acceptor acceptor_;
         std::shared_ptr<LRUCache<std::string, std::string>> cache_;
+        //queue现在被全局共享，每个session共享这个queue
         std::shared_ptr<concurrent::TaskQueue> task_queue_;
         std::vector<std::shared_ptr<Session>> active_sessions_;
         std::mutex sessions_mutex_;

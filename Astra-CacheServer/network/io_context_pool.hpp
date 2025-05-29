@@ -1,8 +1,9 @@
 #pragma once
 #include "Singleton.h"
+#include "logger.hpp"
 #include <asio.hpp>
+#include <thread>
 #include <vector>
-
 /**
  * @author       : caomengxuan666
  * @brief        : ASIO io_service 线程池
@@ -72,15 +73,23 @@ inline asio::io_context &AsioIOServicePool::GetIOService() {
 }
 
 inline void AsioIOServicePool::Stop() {
-    //因为仅仅执行work.reset并不能让iocontext从run的状态中退出
-    //当iocontext已经绑定了读或写的监听事件后，还需要手动stop该服务。
     for (auto &work: _works) {
-        //把服务先停止
-        work->get_io_context().stop();
         work.reset();
     }
 
+    for (auto &io: _ioServices) {
+        io.stop();
+    }
+
     for (auto &t: _threads) {
-        t.join();
+        if (t.joinable() && t.get_id() != std::this_thread::get_id()) {
+            try {
+                t.join();// 只 join 其他线程
+            } catch (const std::system_error &e) {
+                ZEN_LOG_WARN("Failed to join thread {}: {}", t.get_id(), e.what());
+            }
+        } else {
+            ZEN_LOG_DEBUG("Skipping current thread {}", t.get_id());
+        }
     }
 }

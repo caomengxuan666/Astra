@@ -7,6 +7,7 @@
 
 #include <asio/io_context.hpp>
 #include <asio/signal_set.hpp>
+#include <cstdlib>
 #include <memory>
 #include <unistd.h>
 #include <unordered_map>
@@ -31,7 +32,57 @@ inline static Astra::LogLevel parseLogLevel(const std::string &levelStr) {
 }
 
 void writeLogoToConsole(int port, size_t maxLRUSize, const std::string &persistenceFile) {
-    // Print the ASCII logo in cyan
+    // 获取当前进程ID和时间
+    pid_t pid = getpid();
+    auto timeStr = Astra::Logger::GetInstance().CurrentTimestamp();
+
+    // Redis风格的启动头信息
+    fmt::print(fg(fmt::color::light_yellow),
+               "{}:C {} * oO0OoO0OoO0Oo Astra-CacheServer is starting oO0OoO0OoO0Oo\n",
+               pid, timeStr);
+
+    // 3D Redis风格的艺术字 (红色)
+    fmt::print(fg(fmt::color::red), R"(
+                _._                                                  
+           _.-``__ ''-._                                             
+      _.-``    `.  `_.  ''-._           Astra-CacheServer            
+  .-`` .-```.  ```\/    _.,_ ''-._     )");
+
+    // 版本信息(保持青色)
+    fmt::print(fg(fmt::color::cyan), "v1.0.0");
+    fmt::print(fg(fmt::color::red), R"( (64 bit)
+ (    '      ,       .-`  | `,    )     )");
+
+    // 运行模式(黄色)
+    fmt::print(fg(fmt::color::light_yellow), "Standalone mode");
+    fmt::print(fg(fmt::color::red), R"(
+ |`-._`-...-` __...-.``-._|'` _.-'|     Port: )");
+
+    // 端口号(青色)
+    fmt::print(fg(fmt::color::cyan), "{}", port);
+    fmt::print(fg(fmt::color::red), R"(
+ |    `-._   `._    /     _.-'    |     PID: )");
+
+    // PID(青色)
+    fmt::print(fg(fmt::color::cyan), "{}", pid);
+    fmt::print(fg(fmt::color::red), R"(
+  `-._    `-._  `-./  _.-'    _.-'                                   
+ |`-._`-._    `-.__.-'    _.-'_.-'|                                  
+ |    `-._`-._        _.-'_.-'    |           )");
+
+    // 项目URL(黄色)
+    fmt::print(fg(fmt::color::light_yellow), "https://github.com/caomengxuan666/Astra");
+    fmt::print(fg(fmt::color::red), R"(
+  `-._    `-._`-.__.-'_.-'    _.-'                                   
+ |`-._`-._    `-.__.-'    _.-'_.-'|                                  
+ |    `-._`-._        _.-'_.-'    |                                  
+  `-._    `-._`-.__.-'_.-'    _.-'                                   
+      `-._    `-.__.-'    _.-'                                       
+          `-._        _.-'                                           
+              `-.__.-'                                               
+)");
+
+    // ASTRA的LOGO (青色)
     fmt::print(fg(fmt::color::cyan), R"(
  █████╗ ███████╗████████╗██████╗  █████╗ 
 ██╔══██╗██╔════╝╚══██╔══╝██╔══██╗██╔══██╗
@@ -40,13 +91,16 @@ void writeLogoToConsole(int port, size_t maxLRUSize, const std::string &persiste
 ██║  ██║███████║   ██║   ██║  ██║██║  ██║
 ╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝
 )");
-    // Print the welcome message in yellow
-    fmt::print(fg(fmt::color::light_yellow), "Welcome to Astra-CacheServer!\n\n");
 
-    // Print server info in default color
-    fmt::print("Port:             {}\n", port);
-    fmt::print("Max LRU Size:     {}\n", maxLRUSize);
-    fmt::print("Persistence File: {}\n\n", persistenceFile);
+    // 配置信息 (黄色)
+    fmt::print(fg(fmt::color::light_yellow),
+               "{}:M {} * Max LRU Size: {}\n", pid, timeStr, maxLRUSize);
+    fmt::print(fg(fmt::color::light_yellow),
+               "{}:M {} * Persistence File: {}\n", pid, timeStr, persistenceFile);
+    fmt::print(fg(fmt::color::light_yellow),
+               "{}:M {} * Log Level: {}\n", pid, timeStr, Logger::LevelToString(Astra::Logger::GetInstance().GetLevel()));
+    fmt::print(fg(fmt::color::light_yellow),
+               "{}:M {} * Initializing server...\n", pid, timeStr);
 }
 
 int main(int argc, char *argv[]) {
@@ -103,7 +157,11 @@ int main(int argc, char *argv[]) {
                 server->Stop();// 停止服务器资源
             }
 
-            std::quick_exit(0);// 快速退出，不再等待线程 join
+            ZEN_LOG_INFO("Stopping IO context pool...");
+            std::quick_exit(0);
+            //AsioIOServicePool::GetInstance()->Stop();// 容易和线程池冲突，没有释放的必要
+
+            ZEN_LOG_INFO("Graceful shutdown complete.");
         });
 
         // 启动服务器监听

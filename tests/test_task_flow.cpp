@@ -102,7 +102,7 @@ TEST(TaskFlowTest, Task_PauseAndResume) {
     queue.Pause();// 先暂停
 
     // 提交任务，在 Pause 状态下应不执行
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i <= 1000; ++i) {
         auto future = queue.Submit([&count] {
             count.fetch_add(1);
         });

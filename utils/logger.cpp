@@ -76,6 +76,10 @@ namespace Astra {
         level_ = level;
     }
 
+    LogLevel Logger::GetLevel() const {
+        return level_;
+    }
+
     void Logger::AddAppender(std::shared_ptr<LogAppender> appender) {
         std::lock_guard<std::mutex> lock(mutex_);
         appenders_.push_back(std::move(appender));
@@ -92,7 +96,7 @@ namespace Astra {
 
 
     // 获取日志级别名称
-    std::string LevelToString(LogLevel level) {
+    std::string const Logger::LevelToString(LogLevel level) {
         switch (level) {
             case LogLevel::TRACE:
                 return "TRACE";

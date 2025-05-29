@@ -1,7 +1,7 @@
 # Astra - 高性能Redis兼容缓存中间件
 
-[![Build Status](https://example.com/build-status)](https://example.com)
-[![License](https://img.shields.io/github/license/cmxAstra/Astra)](https://github.com/cmxAstra/Astra/blob/main/LICENSE)
+[![Build Status](https://https://github.com/caomengxuan666/Astra/build-status)](https://github.com/caomengxuan666/Astra)
+[![License](https://img.shields.io/github/license/caomengxuan666/Astra)](https://github.com/caomengxuan666/Astra/blob/master/LICENSE)
 
 ## 项目概述
 Astra 是一个基于 C++17 的高性能 Redis 兼容缓存中间件，采用模块化设计实现以下核心价值：
@@ -10,6 +10,10 @@ Astra 是一个基于 C++17 的高性能 Redis 兼容缓存中间件，采用模
 - 实现命令模式的客户端 SDK
 - 支持 TTL 过期机制与后台清理
 - 提供分片锁机制提升并发性能
+
+## 项目截图
+
+![alt text](snapshots/{734A5CB7-AED1-4D02-BFF0-50F80F7A0A6F}.png)
 
 ## 系统架构
 ![Architecture](docs/architecture.png)
@@ -134,7 +138,7 @@ Astra/
 请通过 [CONTRIBUTING.md](CONTRIBUTING.md) 获取完整的贡献指南，包含代码规范、提交要求和审查流程。
 
 ## 问题反馈
-请通过 [GitHub Issues](https://github.com/cmxAstra/Astra/issues) 提交 bug 报告或功能请求
+请通过 [GitHub Issues](https://github.com/caomengxuan666/Astra/issues) 提交 bug 报告或功能请求
 
 ## 许可证
 本项目采用 MIT License - 详见 [LICENSE](LICENSE) 文件
