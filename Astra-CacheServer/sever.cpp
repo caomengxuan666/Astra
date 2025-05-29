@@ -2,9 +2,10 @@
 #include "core/astra.hpp"
 #include "fmt/color.h"
 #include "network/io_context_pool.hpp"
+
 #include "server/server.hpp"
 #include "utils/logger.hpp"
-
+#include "utils/util_path.hpp"
 #include <asio/io_context.hpp>
 #include <asio/signal_set.hpp>
 #include <cstdlib>
@@ -13,7 +14,8 @@
 #include <unordered_map>
 
 using namespace Astra;
-
+using namespace Astra::utils;
+using namespace Astra::Persistence;
 // Map log level string to LogLevel enum
 inline static Astra::LogLevel parseLogLevel(const std::string &levelStr) {
     static const std::unordered_map<std::string, Astra::LogLevel> levels = {
@@ -42,7 +44,7 @@ void writeLogoToConsole(int port, size_t maxLRUSize, const std::string &persiste
                pid, timeStr);
 
     // 3D Redis风格的艺术字 (红色)
-    fmt::print(fg(fmt::color::red), R"(
+    fmt::print(fg(fmt::color::light_yellow), R"(
                 _._                                                  
            _.-``__ ''-._                                             
       _.-``    `.  `_.  ''-._           Astra-CacheServer            
@@ -50,29 +52,29 @@ void writeLogoToConsole(int port, size_t maxLRUSize, const std::string &persiste
 
     // 版本信息(保持青色)
     fmt::print(fg(fmt::color::cyan), "v1.0.0");
-    fmt::print(fg(fmt::color::red), R"( (64 bit)
+    fmt::print(fg(fmt::color::light_yellow), R"( (64 bit)
  (    '      ,       .-`  | `,    )     )");
 
     // 运行模式(黄色)
     fmt::print(fg(fmt::color::light_yellow), "Standalone mode");
-    fmt::print(fg(fmt::color::red), R"(
+    fmt::print(fg(fmt::color::light_yellow), R"(
  |`-._`-...-` __...-.``-._|'` _.-'|     Port: )");
 
     // 端口号(青色)
     fmt::print(fg(fmt::color::cyan), "{}", port);
-    fmt::print(fg(fmt::color::red), R"(
+    fmt::print(fg(fmt::color::light_yellow), R"(
  |    `-._   `._    /     _.-'    |     PID: )");
 
     // PID(青色)
     fmt::print(fg(fmt::color::cyan), "{}", pid);
-    fmt::print(fg(fmt::color::red), R"(
+    fmt::print(fg(fmt::color::light_yellow), R"(
   `-._    `-._  `-./  _.-'    _.-'                                   
  |`-._`-._    `-.__.-'    _.-'_.-'|                                  
  |    `-._`-._        _.-'_.-'    |           )");
 
     // 项目URL(黄色)
     fmt::print(fg(fmt::color::light_yellow), "https://github.com/caomengxuan666/Astra");
-    fmt::print(fg(fmt::color::red), R"(
+    fmt::print(fg(fmt::color::light_yellow), R"(
   `-._    `-._`-.__.-'_.-'    _.-'                                   
  |`-._`-._    `-.__.-'    _.-'_.-'|                                  
  |    `-._`-._        _.-'_.-'    |                                  
@@ -106,11 +108,11 @@ void writeLogoToConsole(int port, size_t maxLRUSize, const std::string &persiste
 int main(int argc, char *argv[]) {
     // Define command line options
     args::ArgumentParser parser("Astra-Cache Server", "A Redis-compatible Astra Cache server.");
-    args::ValueFlag<int> port(parser, "port", "Port number to listen on", {'p', "port"}, 8080);
+    args::ValueFlag<int> port(parser, "port", "Port number to listen on", {'p', "port"}, 6379);
     args::ValueFlag<std::string> logLevelStr(parser, "level", "Log level: trace, debug, info, warn, error, fatal",
                                              {'l', "loglevel"}, "info");
     args::ValueFlag<std::string> coreDump(parser, "filename", "Core dump file name", {'c', "coredump"},
-                                          "cache_dump.rdb");
+                                          std::string(getenv("HOME")) + "/.astra/cache_dump.rdb");
     args::ValueFlag<size_t> maxLRUSize(parser, "size", "Maximum size of LRU cache", {'m', "maxsize"}, 100000);
 
     try {

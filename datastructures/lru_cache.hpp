@@ -3,6 +3,7 @@
 #include "concurrent/task_queue.hpp"
 #include "logger.hpp"
 #include <chrono>
+#include <filesystem>
 #include <fstream>
 #include <list>
 #include <optional>
@@ -10,6 +11,7 @@
 #include <unordered_map>
 #include <vector>
 namespace Astra::datastructures {
+
 
     template<typename Key, typename Value>
     class LRUCache {
@@ -281,65 +283,6 @@ namespace Astra::datastructures {
 
     }// namespace detail
 
-    // 将缓存保存到文件
-    template<typename Key, typename Value>
-    void SaveCacheToFile(const LRUCache<Key, Value> &cache, const std::string &filename) {
-        ZEN_LOG_INFO("Saving cache to file: {}", filename);
-        std::ofstream out(filename);
-        if (!out.is_open()) {
-            ZEN_LOG_WARN("Failed to open file: {}", filename);
-            return;
-        }
 
-        for (const auto &entry: cache.GetAllEntries()) {
-            const Key &key = entry.first;
-            const Value &value = entry.second;
-
-            // 使用公共接口获取过期时间
-            auto expire_time_opt = cache.GetExpiryTime(key);
-            int64_t expire_time = 0;
-
-            if (expire_time_opt.has_value()) {
-                expire_time = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                      expire_time_opt.value())
-                                      .count();
-            }
-
-            out << key << " " << value << " " << expire_time << "\n";
-            ZEN_LOG_INFO("KEY :{} VALUE :{} EXPIRE_TIME :{}", key, value, expire_time);
-        }
-
-        out.close();
-        ZEN_LOG_INFO("Saving cache to file: {} successfully", filename);
-    }
-
-    // 从文件恢复缓存
-    template<typename Key, typename Value>
-    void LoadCacheFromFile(LRUCache<Key, Value> &cache, const std::string &filename) {
-        std::ifstream in(filename);
-        if (!in.is_open()) {
-            ZEN_LOG_WARN("Failed to open file: {}", filename);
-            return;
-        }
-
-        std::string line;
-        while (std::getline(in, line)) {
-            std::istringstream iss(line);
-            Key key;
-            Value value;
-            int64_t expire_s = 0;
-
-            if (!(iss >> key >> value >> expire_s)) continue;
-
-            // 使用 Put 方法保证 LRU 正确性，并传递 TTL 参数
-            if (expire_s > 0) {
-                cache.Put(key, value, std::chrono::seconds(expire_s));
-            } else {
-                cache.Put(key, value);
-            }
-        }
-
-        in.close();
-    }
 
 }// namespace Astra::datastructures

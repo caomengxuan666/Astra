@@ -7,6 +7,7 @@
 #include <datastructures/lru_cache.hpp>
 #include <memory>
 #include <proto/redis_command_handler.hpp>
+#include "persistence/persistence.hpp"
 
 namespace Astra::apps {
 
@@ -225,10 +226,10 @@ namespace Astra::apps {
     class AstraCacheServer {
     public:
         explicit AstraCacheServer(asio::io_context &context, size_t cache_size,
-                                  const std::string &persistent_file = "cache_dump.rdb")
+                                  const std::string &persistent_file)
             : context_(context),
               cache_(std::make_shared<LRUCache<std::string, std::string>>(cache_size)),
-              acceptor_(context) {
+              acceptor_(context),persistence_db_name_(persistent_file) {
             // 使用同一个 task_queue_
             task_queue_ = std::make_shared<concurrent::TaskQueue>(
                     std::thread::hardware_concurrency());
@@ -244,7 +245,7 @@ namespace Astra::apps {
             ZEN_LOG_INFO("Server listening on port {}", port);
 
             //加载CACHE
-            ZEN_LOG_INFO("Loading cache...");
+            ZEN_LOG_INFO("Loading cache from {}",persistence_db_name_);
             LoadCacheFromFile(persistence_db_name_);
 
             // 每次 accept 使用新 socket
@@ -267,12 +268,12 @@ namespace Astra::apps {
             SaveToFile(persistence_db_name_);
         }
 
-        void SaveToFile(const std::string &filename = "cache_dump.rdb") {
-            Astra::datastructures::SaveCacheToFile(*cache_.get(), filename);
+        void SaveToFile(const std::string &filename) {
+            Astra::Persistence::SaveCacheToFile(*cache_.get(), filename);
         }
 
-        void LoadCacheFromFile(const std::string &filename = "cache_dump.rdb") {
-            Astra::datastructures::LoadCacheFromFile(*cache_.get(), filename);
+        void LoadCacheFromFile(const std::string &filename) {
+            Astra::Persistence::LoadCacheFromFile(*cache_.get(), filename);
         }
 
     private:
@@ -311,7 +312,7 @@ namespace Astra::apps {
             });
         }
 
-        std::string persistence_db_name_ = "cache_dump.rdb";
+        std::string persistence_db_name_;
         asio::io_context &context_;
         asio::ip::tcp::acceptor acceptor_;
         std::shared_ptr<LRUCache<std::string, std::string>> cache_;
