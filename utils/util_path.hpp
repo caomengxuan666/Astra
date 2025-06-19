@@ -47,4 +47,4 @@ namespace Astra::utils {
             return false;
         }
     }
-}// namespace utils
+}// namespace Astra::utils

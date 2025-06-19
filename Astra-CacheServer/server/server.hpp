@@ -1,13 +1,14 @@
 #pragma once
 
+#include "caching/AstraCacheStrategy.hpp"
 #include "logger.hpp"
+#include "persistence/persistence.hpp"
 #include <asio.hpp>
 #include <boost/asio/io_context.hpp>
 #include <concurrent/task_queue.hpp>
 #include <datastructures/lru_cache.hpp>
 #include <memory>
 #include <proto/redis_command_handler.hpp>
-#include "persistence/persistence.hpp"
 
 namespace Astra::apps {
 
@@ -15,7 +16,7 @@ namespace Astra::apps {
     class Session : public std::enable_shared_from_this<Session> {
     public:
         explicit Session(asio::ip::tcp::socket socket,
-                         std::shared_ptr<LRUCache<std::string, std::string>> cache,
+                         std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache,
                          std::shared_ptr<concurrent::TaskQueue> global_task_queue)
             : socket_(std::move(socket)),
               handler_(std::make_shared<RedisCommandHandler>(cache)),
@@ -228,12 +229,12 @@ namespace Astra::apps {
         explicit AstraCacheServer(asio::io_context &context, size_t cache_size,
                                   const std::string &persistent_file)
             : context_(context),
-              cache_(std::make_shared<LRUCache<std::string, std::string>>(cache_size)),
-              acceptor_(context),persistence_db_name_(persistent_file) {
+              cache_(std::make_shared<AstraCache<LRUCache, std::string, std::string>>(cache_size)),
+              acceptor_(context), persistence_db_name_(persistent_file) {
             // 使用同一个 task_queue_
             task_queue_ = std::make_shared<concurrent::TaskQueue>(
                     std::thread::hardware_concurrency());
-            cache_->StartEvictionTask(*task_queue_);
+            //cache_->StartEvictionTask(*task_queue_);
         }
 
         void Start(unsigned short port) {
@@ -245,7 +246,7 @@ namespace Astra::apps {
             ZEN_LOG_INFO("Server listening on port {}", port);
 
             //加载CACHE
-            ZEN_LOG_INFO("Loading cache from {}",persistence_db_name_);
+            ZEN_LOG_INFO("Loading cache from {}", persistence_db_name_);
             LoadCacheFromFile(persistence_db_name_);
 
             // 每次 accept 使用新 socket
@@ -315,7 +316,7 @@ namespace Astra::apps {
         std::string persistence_db_name_;
         asio::io_context &context_;
         asio::ip::tcp::acceptor acceptor_;
-        std::shared_ptr<LRUCache<std::string, std::string>> cache_;
+        std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache_;
         //queue现在被全局共享，每个session共享这个queue
         std::shared_ptr<concurrent::TaskQueue> task_queue_;
         std::vector<std::shared_ptr<Session>> active_sessions_;

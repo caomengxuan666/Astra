@@ -1,7 +1,7 @@
-#include <iostream>
 #include <hiredis/hiredis.h>
+#include <iostream>
 
-void check_reply(redisReply* reply) {
+void check_reply(redisReply *reply) {
     if (!reply) {
         std::cerr << "Error: Received null reply\n";
         return;
@@ -48,7 +48,7 @@ int main() {
 
     // PING
     {
-        redisReply *reply = (redisReply*)redisCommand(c, "PING");
+        redisReply *reply = (redisReply *) redisCommand(c, "PING");
         std::cout << "PING response: ";
         check_reply(reply);
         freeReplyObject(reply);
@@ -56,7 +56,7 @@ int main() {
 
     // SET
     {
-        redisReply *reply = (redisReply*)redisCommand(c, "SET test_key HelloHiredis");
+        redisReply *reply = (redisReply *) redisCommand(c, "SET test_key HelloHiredis");
         std::cout << "SET response: ";
         check_reply(reply);
         freeReplyObject(reply);
@@ -64,7 +64,7 @@ int main() {
 
     // GET
     {
-        redisReply *reply = (redisReply*)redisCommand(c, "GET test_key");
+        redisReply *reply = (redisReply *) redisCommand(c, "GET test_key");
         std::cout << "GET test_key: ";
         check_reply(reply);
         freeReplyObject(reply);
@@ -72,7 +72,7 @@ int main() {
 
     // EXISTS
     {
-        redisReply *reply = (redisReply*)redisCommand(c, "EXISTS test_key");
+        redisReply *reply = (redisReply *) redisCommand(c, "EXISTS test_key");
         std::cout << "EXISTS test_key: ";
         check_reply(reply);
         freeReplyObject(reply);
@@ -80,7 +80,7 @@ int main() {
 
     // TTL (expect -1 since no EXPIRE set)
     {
-        redisReply *reply = (redisReply*)redisCommand(c, "TTL test_key");
+        redisReply *reply = (redisReply *) redisCommand(c, "TTL test_key");
         std::cout << "TTL test_key: ";
         check_reply(reply);
         freeReplyObject(reply);
@@ -88,12 +88,12 @@ int main() {
 
     // INCR / DECR
     {
-        redisReply *reply = (redisReply*)redisCommand(c, "INCR test_counter");
+        redisReply *reply = (redisReply *) redisCommand(c, "INCR test_counter");
         std::cout << "INCR test_counter: ";
         check_reply(reply);
         freeReplyObject(reply);
 
-        reply = (redisReply*)redisCommand(c, "DECR test_counter");
+        reply = (redisReply *) redisCommand(c, "DECR test_counter");
         std::cout << "DECR test_counter: ";
         check_reply(reply);
         freeReplyObject(reply);
@@ -101,7 +101,7 @@ int main() {
 
     // KEYS *
     {
-        redisReply *reply = (redisReply*)redisCommand(c, "KEYS *");
+        redisReply *reply = (redisReply *) redisCommand(c, "KEYS *");
         std::cout << "KEYS *: ";
         check_reply(reply);
         freeReplyObject(reply);
@@ -109,7 +109,7 @@ int main() {
 
     // INFO
     {
-        redisReply *reply = (redisReply*)redisCommand(c, "INFO");
+        redisReply *reply = (redisReply *) redisCommand(c, "INFO");
         std::cout << "INFO output:\n";
         if (reply && reply->type == REDIS_REPLY_STRING) {
             std::cout << reply->str << "\n";
@@ -119,7 +119,7 @@ int main() {
 
     // DEL
     {
-        redisReply *reply = (redisReply*)redisCommand(c, "DEL test_key");
+        redisReply *reply = (redisReply *) redisCommand(c, "DEL test_key");
         std::cout << "DEL test_key: ";
         check_reply(reply);
         freeReplyObject(reply);

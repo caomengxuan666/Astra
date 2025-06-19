@@ -1,5 +1,6 @@
 #pragma once
 #include "CommandImpl.hpp"
+#include "caching/AstraCacheStrategy.hpp"
 #include <algorithm>
 #include <cctype>
 #include <concurrent/task_queue.hpp>
@@ -15,8 +16,8 @@ namespace Astra::proto {
     // 命令工厂
     class CommandFactory {
     public:
-        explicit CommandFactory(std::shared_ptr<LRUCache<std::string,
-                                                         std::string>>
+        explicit CommandFactory(std::shared_ptr<AstraCache<LRUCache, std::string,
+                                                           std::string>>
                                         cache) : cache_(std::move(cache)) {}
 
         std::unique_ptr<ICommand> CreateCommand(const std::string &cmd) {
@@ -36,16 +37,16 @@ namespace Astra::proto {
         }
 
     private:
-        std::shared_ptr<LRUCache<std::string,
-                                 std::string>>
+        std::shared_ptr<AstraCache<LRUCache, std::string,
+                                   std::string>>
                 cache_;
     };
 
     // RedisCommandHandler 保持接口不变，内部用工厂和命令模式实现
     class RedisCommandHandler {
     public:
-        explicit RedisCommandHandler(std::shared_ptr<LRUCache<std::string,
-                                                              std::string>>
+        explicit RedisCommandHandler(std::shared_ptr<AstraCache<LRUCache, std::string,
+                                                                std::string>>
                                              cache)
             : factory_(std::move(cache)) {}
 

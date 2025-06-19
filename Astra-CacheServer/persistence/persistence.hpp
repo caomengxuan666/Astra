@@ -4,12 +4,13 @@
  * @Author       : caomengxuan666 2507560089@qq.com
  * @Version      : 0.0.1
  * @LastEditors  : caomengxuan666 2507560089@qq.com
- * @LastEditTime : 2025-05-29 18:29:31
+ * @LastEditTime : 2025-06-19 19:30:51
  * @Copyright    : PESONAL DEVELOPER CMX., Copyright (c) 2025.
 **/
 #include <chrono>
 #include <datastructures/lru_cache.hpp>
 #include <filesystem>
+#include <fstream>
 #include <utils/util_path.hpp>
 namespace Astra::Persistence {
     namespace fs = std::filesystem;
@@ -17,8 +18,8 @@ namespace Astra::Persistence {
     using namespace utils;
     using namespace std::chrono_literals;
 
-    template<typename Key, typename Value>
-    bool SaveCacheToFile(const LRUCache<Key, Value> &cache, const std::string &filename) {
+    template<template<typename, typename> class CacheStrategy, typename Key, typename Value>
+    bool SaveCacheToFile(AstraCache<CacheStrategy, Key, Value> &cache, const std::string &filename) {
         // 确保目录存在
         if (!ensureDirectoryExists(filename)) {
             ZEN_LOG_ERROR("Cannot create directory for file: {}", filename);
@@ -75,8 +76,8 @@ namespace Astra::Persistence {
     }
 
     // 从文件恢复缓存
-    template<typename Key, typename Value>
-    bool LoadCacheFromFile(LRUCache<Key, Value> &cache, const std::string &filename) {
+    template<template<typename, typename> class CacheStrategy, typename Key, typename Value>
+    bool LoadCacheFromFile(AstraCache<CacheStrategy, Key, Value> &cache, const std::string &filename) {
         ZEN_LOG_INFO("Loading cache from file: {}", filename);
 
         // 检查文件是否存在

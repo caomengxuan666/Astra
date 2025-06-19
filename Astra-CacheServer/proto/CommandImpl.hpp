@@ -1,6 +1,7 @@
 #pragma once
 #include "CommandResponseBuilder.hpp"
 #include "ICommand.hpp"
+#include "caching/AstraCacheStrategy.hpp"
 #include "command_parser.hpp"
 #include "resp_builder.hpp"
 #include <chrono>
@@ -12,7 +13,7 @@ namespace Astra::proto {
 
     class GetCommand : public ICommand {
     public:
-        explicit GetCommand(std::shared_ptr<LRUCache<std::string, std::string>> cache) : cache_(std::move(cache)) {}
+        explicit GetCommand(std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache) : cache_(std::move(cache)) {}
         std::string Execute(const std::vector<std::string> &argv) override {
             if (argv.size() < 2) {
                 return RespBuilder::Error("wrong number of arguments for 'GET'");
@@ -25,12 +26,12 @@ namespace Astra::proto {
         }
 
     private:
-        std::shared_ptr<LRUCache<std::string, std::string>> cache_;
+        std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache_;
     };
 
     class SetCommand : public ICommand {
     public:
-        explicit SetCommand(std::shared_ptr<LRUCache<std::string, std::string>> cache) : cache_(std::move(cache)) {}
+        explicit SetCommand(std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache) : cache_(std::move(cache)) {}
         std::string Execute(const std::vector<std::string> &argv) override {
             if (argv.size() < 3) return RespBuilder::Error("wrong number of arguments for 'SET'");
 
@@ -52,12 +53,12 @@ namespace Astra::proto {
         }
 
     private:
-        std::shared_ptr<LRUCache<std::string, std::string>> cache_;
+        std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache_;
     };
 
     class DelCommand : public ICommand {
     public:
-        explicit DelCommand(std::shared_ptr<LRUCache<std::string, std::string>> cache) : cache_(std::move(cache)) {}
+        explicit DelCommand(std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache) : cache_(std::move(cache)) {}
         std::string Execute(const std::vector<std::string> &argv) override {
             if (argv.size() < 2) return RespBuilder::Error("wrong number of arguments for 'DEL'");
 
@@ -69,7 +70,7 @@ namespace Astra::proto {
         }
 
     private:
-        std::shared_ptr<LRUCache<std::string, std::string>> cache_;
+        std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache_;
     };
 
     class PingCommand : public ICommand {
@@ -144,7 +145,7 @@ namespace Astra::proto {
     // 重构KEYS命令使用RespBuilder
     class KeysCommand : public ICommand {
     public:
-        explicit KeysCommand(std::shared_ptr<LRUCache<std::string, std::string>> cache)
+        explicit KeysCommand(std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache)
             : cache_(std::move(cache)) {}
 
         std::string Execute(const std::vector<std::string> &argv) override {
@@ -162,12 +163,12 @@ namespace Astra::proto {
         }
 
     private:
-        std::shared_ptr<LRUCache<std::string, std::string>> cache_;
+        std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache_;
     };
 
     class TtlCommand : public ICommand {
     public:
-        explicit TtlCommand(std::shared_ptr<LRUCache<std::string, std::string>> cache)
+        explicit TtlCommand(std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache)
             : cache_(std::move(cache)) {}
 
         std::string Execute(const std::vector<std::string> &argv) override {
@@ -178,7 +179,7 @@ namespace Astra::proto {
             const std::string &key = argv[1];
 
             // 键不存在或已过期
-            if (!cache_->HasKey(key)) {
+            if (!cache_->Contains(key)) {
                 return RespBuilder::Integer(0);
             }
 
@@ -196,12 +197,12 @@ namespace Astra::proto {
         }
 
     private:
-        std::shared_ptr<LRUCache<std::string, std::string>> cache_;
+        std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache_;
     };
 
     class IncrCommand : public ICommand {
     public:
-        explicit IncrCommand(std::shared_ptr<LRUCache<std::string, std::string>> cache)
+        explicit IncrCommand(std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache)
             : cache_(std::move(cache)) {}
 
         std::string Execute(const std::vector<std::string> &argv) override {
@@ -235,12 +236,12 @@ namespace Astra::proto {
         }
 
     private:
-        std::shared_ptr<LRUCache<std::string, std::string>> cache_;
+        std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache_;
     };
 
     class DecrCommand : public ICommand {
     public:
-        explicit DecrCommand(std::shared_ptr<LRUCache<std::string, std::string>> cache)
+        explicit DecrCommand(std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache)
             : cache_(std::move(cache)) {}
 
         std::string Execute(const std::vector<std::string> &argv) override {
@@ -274,12 +275,12 @@ namespace Astra::proto {
         }
 
     private:
-        std::shared_ptr<LRUCache<std::string, std::string>> cache_;
+        std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache_;
     };
 
     class ExistsCommand : public ICommand {
     public:
-        explicit ExistsCommand(std::shared_ptr<LRUCache<std::string, std::string>> cache)
+        explicit ExistsCommand(std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache)
             : cache_(std::move(cache)) {}
 
         std::string Execute(const std::vector<std::string> &argv) override {
@@ -289,12 +290,12 @@ namespace Astra::proto {
 
             const std::string &key = argv[1];
 
-            bool exists = cache_->HasKey(key);
+            bool exists = cache_->Contains(key);
             return RespBuilder::Integer(exists ? 1 : 0);
         }
 
     private:
-        std::shared_ptr<LRUCache<std::string, std::string>> cache_;
+        std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache_;
     };
 
 }// namespace Astra::proto

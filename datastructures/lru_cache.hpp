@@ -1,20 +1,17 @@
 #pragma once
 
+#include "Astra-CacheServer/caching/AstraCacheStrategy.hpp"
 #include "concurrent/task_queue.hpp"
-#include "logger.hpp"
 #include <chrono>
-#include <filesystem>
-#include <fstream>
 #include <list>
 #include <optional>
-#include <sstream>
 #include <unordered_map>
 #include <vector>
 namespace Astra::datastructures {
 
 
     template<typename Key, typename Value>
-    class LRUCache {
+    class LRUCache : public AstraCacheStratgy<LRUCache<Key, Value>, Key, Value> {
     public:
         using iterator = typename std::list<std::pair<Key, Value>>::iterator;
         using const_iterator = typename std::list<std::pair<Key, Value>>::const_iterator;
@@ -265,24 +262,5 @@ namespace Astra::datastructures {
             std::unordered_map<Key, iterator> hot_keys;
         } hot_key_cache_;
     };
-
-    // -------------------------
-    // 非成员函数：持久化支持
-    // -------------------------
-
-    namespace detail {
-
-        // 工具函数：将时间点转为毫秒字符串
-        template<typename Clock>
-        std::string ToMilliString(const std::chrono::time_point<Clock> &tp) {
-            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                              tp.time_since_epoch())
-                              .count();
-            return std::to_string(ms);
-        }
-
-    }// namespace detail
-
-
 
 }// namespace Astra::datastructures
