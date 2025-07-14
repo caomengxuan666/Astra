@@ -1,17 +1,15 @@
+#include "server/server.hpp"
 #include "args.hxx"
 #include "core/astra.hpp"
 #include "fmt/color.h"
 #include "network/io_context_pool.hpp"
-
-#include "server/server.hpp"
+#include "persistence/process.hpp"
+#include "persistence/util_path.hpp"
 #include "utils/logger.hpp"
-#include "utils/util_path.hpp"
 #include <asio/io_context.hpp>
 #include <asio/signal_set.hpp>
 #include <cstdlib>
 #include <memory>
-#include <unistd.h>
-#include <unordered_map>
 
 using namespace Astra;
 using namespace Astra::utils;
@@ -23,7 +21,7 @@ inline static Astra::LogLevel parseLogLevel(const std::string &levelStr) {
             {"debug", Astra::LogLevel::DEBUG},
             {"info", Astra::LogLevel::INFO},
             {"warn", Astra::LogLevel::WARN},
-            {"error", Astra::LogLevel::ERROR},
+            {"error", Astra::LogLevel::ERR},
             {"fatal", Astra::LogLevel::FATAL}};
 
     auto it = levels.find(levelStr);
@@ -35,7 +33,8 @@ inline static Astra::LogLevel parseLogLevel(const std::string &levelStr) {
 
 void writeLogoToConsole(int port, size_t maxLRUSize, const std::string &persistenceFile) {
     // 获取当前进程ID和时间
-    pid_t pid = getpid();
+
+    auto pid= get_pid_str();
     auto timeStr = Astra::Logger::GetInstance().CurrentTimestamp();
 
     // Redis风格的启动头信息
@@ -108,11 +107,26 @@ void writeLogoToConsole(int port, size_t maxLRUSize, const std::string &persiste
 int main(int argc, char *argv[]) {
     // Define command line options
     args::ArgumentParser parser("Astra-Cache Server", "A Redis-compatible Astra Cache server.");
-    args::ValueFlag<int> port(parser, "port", "Port number to listen on", {'p', "port"}, 6379);
+    args::ValueFlag<int> port(parser, "port", "Port number to listen on", {'p', "port"}, 6380);
     args::ValueFlag<std::string> logLevelStr(parser, "level", "Log level: trace, debug, info, warn, error, fatal",
                                              {'l', "loglevel"}, "info");
+
+    // 获取用户主目录，跨平台实现
+    fs::path homeDir;
+    const char*homeEnv=Astra::utils::getEnv();
+    if (homeEnv) {
+        homeDir = homeEnv;
+    } else {
+        // 如果无法获取环境变量，使用当前目录
+        homeDir = fs::current_path();
+        ZEN_LOG_WARN("无法获取用户主目录，使用当前目录: {}", homeDir.string());
+    }
+
+    // 构建跨平台的路径
+    fs::path dumpFilePath = homeDir / ".astra" / "cache_dump.rdb";
+
     args::ValueFlag<std::string> coreDump(parser, "filename", "Core dump file name", {'c', "coredump"},
-                                          std::string(getenv("HOME")) + "/.astra/cache_dump.rdb");
+                                          dumpFilePath.string());
     args::ValueFlag<size_t> maxLRUSize(parser, "size", "Maximum size of LRU cache", {'m', "maxsize"}, 100000);
 
     try {
@@ -153,7 +167,7 @@ int main(int argc, char *argv[]) {
 
         // 添加信号处理逻辑
         signals.async_wait([server_weak = std::weak_ptr<Astra::apps::AstraCacheServer>(server)](
-                                   const boost::system::error_code &, int) {
+                                   const asio::error_code &, int) {
             if (auto server = server_weak.lock()) {
                 ZEN_LOG_INFO("Shutting down server...");
                 server->Stop();// 停止服务器资源

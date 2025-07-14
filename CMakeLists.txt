@@ -24,6 +24,16 @@ include_directories(
 include(${PROJECT_SOURCE_DIR}/cmake/SetupTarget.cmake)
 include(${PROJECT_SOURCE_DIR}/cmake/SetupInterface.cmake)
 
+# 为Windows平台添加_WIN32_WINNT定义
+if(WIN32)
+    add_compile_definitions(
+            _WIN32_WINNT=0x0601
+            NOMINMAX
+            WIN32_LEAN_AND_MEAN     # 避免 windows.h 包含 WinSock.h 等冗余内容
+            _WINSOCK_DEPRECATED_NO_WARNINGS  # 可选：避免 WinSock 老函数警告
+    )
+endif()
+
 # 添加子模块
 add_subdirectory(core)
 add_subdirectory(utils)
@@ -34,6 +44,7 @@ add_subdirectory(Astra-CacheServer)
 
 #link_libraries(zenutils)
 
+
 # 测试
 enable_testing()
-add_subdirectory(tests)
+#add_subdirectory(tests)

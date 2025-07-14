@@ -1,16 +1,19 @@
-#pragma once
+#include "util_path.hpp"
 #include <filesystem>
-#include <logger.hpp>
-#include <string>
+#include <filesystem>
+#include <utils/logger.hpp>
+namespace fs = std::filesystem;
 #ifdef _WIN32
 #include <windows.h>
+#define PATH_MAX MAX_PATH
 #else
 #include <limits.h>
 #include <unistd.h>
 #endif
 
 namespace Astra::utils {
-    inline std::string getExecutableDirectory() noexcept {
+
+    std::string getExecutableDirectory() noexcept {
         std::string path;
 
 #ifdef _WIN32
@@ -28,14 +31,13 @@ namespace Astra::utils {
 
         size_t last_sep = path.find_last_of("\\/");
         if (last_sep != std::string::npos) {
-            return std::move(path.substr(0, last_sep));
+            return path.substr(0, last_sep);
         }
         return "";
     }
-    namespace fs = std::filesystem;
 
-    // 确保目录存在，如果不存在则创建
-    inline bool ensureDirectoryExists(const std::string &filepath) {
+    bool ensureDirectoryExists(const std::string &filepath) {
+        namespace fs = std::filesystem;
         try {
             fs::path path(filepath);
             if (path.has_parent_path()) {
@@ -47,4 +49,17 @@ namespace Astra::utils {
             return false;
         }
     }
+    const char *getEnv() {
+        // 获取用户主目录，跨平台实现
+        fs::path homeDir;
+        const char *homeEnv = nullptr;
+
+#ifdef _WIN32
+        homeEnv = std::getenv("USERPROFILE");// Windows系统
+#else
+        homeEnv = std::getenv("HOME");// Unix/Linux系统
+#endif
+        return homeEnv;
+    }
+
 }// namespace Astra::utils

@@ -22,7 +22,7 @@ namespace Astra {
             case LogLevel::WARN:
                 style = fmt::fg(fmt::color::orange);
                 break;
-            case LogLevel::ERROR:
+            case LogLevel::ERR:
                 style = fmt::fg(fmt::color::red) | fmt::emphasis::bold;
                 break;
             case LogLevel::FATAL:
@@ -106,7 +106,7 @@ namespace Astra {
                 return "INFO ";
             case LogLevel::WARN:
                 return "WARN ";
-            case LogLevel::ERROR:
+            case LogLevel::ERR:
                 return "ERROR";
             case LogLevel::FATAL:
                 return "FATAL";

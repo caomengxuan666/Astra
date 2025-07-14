@@ -4,13 +4,14 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-add_executable(Astra-CacheServer sever.cpp)
+add_executable(Astra-CacheServer server.cpp persistence/util_path.cpp persistence/process.cpp)
 
 target_link_libraries(Astra-CacheServer zenutils)
 
-add_library(Astra-CacheSDK SHARED sdk/astra_client.cpp)
+add_library(Astra-CacheSDK SHARED sdk/astra_client.cpp persistence/util_path.cpp
+        persistence/process.cpp)
 
-add_subdirectory(examples)
+#add_subdirectory(examples)
 
 # install 写入
 install(TARGETS Astra-CacheServer RUNTIME DESTINATION bin)

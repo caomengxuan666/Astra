@@ -4,7 +4,7 @@
 #include "logger.hpp"
 #include "persistence/persistence.hpp"
 #include <asio.hpp>
-#include <boost/asio/io_context.hpp>
+#include <asio/io_context.hpp>
 #include <concurrent/task_queue.hpp>
 #include <datastructures/lru_cache.hpp>
 #include <memory>
@@ -202,7 +202,7 @@ namespace Astra::apps {
             task_queue_->Post([this, self, response]() {
                 // 使用异步写入
                 asio::async_write(socket_, asio::buffer(response),
-                                  [self, response](const boost::system::error_code &ec, std::size_t /*bytes_transferred*/) {
+                                  [self, response](const asio::error_code &ec, std::size_t /*bytes_transferred*/) {
                                       if (ec) {
                                           ZEN_LOG_WARN("Failed to send response: {}", ec.message());
                                           //self->Stop();// 可选：写入失败时关闭连接

@@ -9,6 +9,7 @@
 #include <mutex>
 #include <string>
 #include <vector>
+#include <sstream>
 
 namespace Astra {
 
@@ -18,7 +19,7 @@ namespace Astra {
         DEBUG,
         INFO,
         WARN,
-        ERROR,
+        ERR,
         FATAL
     };
 
@@ -80,7 +81,7 @@ namespace Astra {
 
         template<typename... Args>
         void Error(const std::string &fmt, Args &&...args) {
-            Log(LogLevel::ERROR, fmt::format(fmt, std::forward<Args>(args)...));
+            Log(LogLevel::ERR, fmt::format(fmt, std::forward<Args>(args)...));
         }
 
         template<typename... Args>
