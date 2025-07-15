@@ -3,3 +3,6 @@
 third-party/mimalloc/build
 third-party/mimalloc/bin
 *.rdb
+/.idea
+/out
+/.vs

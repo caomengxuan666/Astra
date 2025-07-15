@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cassert>
 
 #define ZEN_UNUSED(x) (void) (x)
 #define ZEN_ASSERT(cond, msg) assert((cond) && msg)

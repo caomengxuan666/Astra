@@ -1,8 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
-project(ZenCore VERSION 0.1 LANGUAGES CXX)
+project(ZenCore VERSION 0.1 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # 输出路径
@@ -34,11 +37,15 @@ if(WIN32)
     )
 endif()
 
+
 # 添加子模块
 add_subdirectory(core)
 add_subdirectory(utils)
 add_subdirectory(concurrent)
 add_subdirectory(datastructures)
+set(MI_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+set(MI_BUILD_STATIC ON CACHE BOOL "" FORCE)
+set(MI_INSTALL_TOPLEVEL ON CACHE BOOL "" FORCE)
 add_subdirectory(third-party/mimalloc)
 add_subdirectory(Astra-CacheServer)
 

@@ -4,7 +4,7 @@
 #include <chrono>// 添加chrono头文件以支持时间相关功能
 #include <string>
 #include <vector>
-
+#include "core/macros.hpp"
 namespace Astra::Client {
 
     // RESP 响应类型枚举
@@ -25,7 +25,7 @@ namespace Astra::Client {
         std::vector<RespValue> array;
     };
 
-    class AstraClient {
+    class ZEN_API AstraClient {
     public:
         // 构造函数：连接到指定地址和端口
         explicit AstraClient(const std::string &host, int port);

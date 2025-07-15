@@ -8,10 +8,12 @@ add_executable(Astra-CacheServer server.cpp persistence/util_path.cpp persistenc
 
 target_link_libraries(Astra-CacheServer zenutils)
 
-add_library(Astra-CacheSDK SHARED sdk/astra_client.cpp persistence/util_path.cpp
+add_library(Astra-CacheSDK SHARED sdk/astra_client.cpp persistence/util_path.cpp sdk/astra_client_c.cpp
         persistence/process.cpp)
 
-#add_subdirectory(examples)
+target_link_libraries(Astra-CacheSDK PRIVATE zenutils)
+
+add_subdirectory(examples)
 
 # install 写入
 install(TARGETS Astra-CacheServer RUNTIME DESTINATION bin)
