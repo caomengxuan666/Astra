@@ -45,7 +45,7 @@ namespace asio {
         };
 
 #define ASIO_NULL_STATIC_MUTEX_INIT \
-    { 0 }
+    {0}
 
     }// namespace detail
 }// namespace asio

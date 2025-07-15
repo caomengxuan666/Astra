@@ -49,7 +49,7 @@ namespace asio {
         };
 
 #define ASIO_POSIX_STATIC_MUTEX_INIT \
-    { PTHREAD_MUTEX_INITIALIZER }
+    {PTHREAD_MUTEX_INITIALIZER}
 
     }// namespace detail
 }// namespace asio

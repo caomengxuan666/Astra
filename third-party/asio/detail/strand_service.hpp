@@ -115,7 +115,7 @@ namespace asio {
 
             // Number of implementations shared between all strand objects.
 #if defined(ASIO_STRAND_IMPLEMENTATIONS)
-            enum {num_implementations = ASIO_STRAND_IMPLEMENTATIONS};
+            enum { num_implementations = ASIO_STRAND_IMPLEMENTATIONS };
 #else // defined(ASIO_STRAND_IMPLEMENTATIONS)
             enum { num_implementations = 193 };
 #endif// defined(ASIO_STRAND_IMPLEMENTATIONS)

@@ -3,14 +3,14 @@
 #include <core/noncopyable.hpp>
 #define FMT_HEADER_ONLY
 #include <fmt/color.h>
-#include <fmt/format.h>
 #include <fmt/core.h>
+#include <fmt/format.h>
 #include <iomanip>
 #include <memory>
 #include <mutex>
+#include <sstream>
 #include <string>
 #include <vector>
-#include <sstream>
 
 namespace Astra {
 

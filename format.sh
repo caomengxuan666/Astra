@@ -57,15 +57,19 @@ format_file() {
 export -f format_file
 export CLANG_FORMAT
 
-# 使用 find 查找文件，并根据是否安装 parallel 选择处理方式
+# 使用 find 查找文件，并排除 third-party 目录，根据是否安装 parallel 选择处理方式
 echo "Formatting files..."
 if $USE_PARALLEL; then
     echo "Running with $PARALLEL_JOBS parallel jobs"
-    find "${ROOT_DIR}" -type f "(" "${find_expr[@]}" ")" -print0 | \
+    find "${ROOT_DIR}" \
+        -path "${ROOT_DIR}/third-party" -prune -o \
+        -type f \( "${find_expr[@]}" \) -print0 | \
         parallel -0 -j "$PARALLEL_JOBS" format_file
 else
     # 串行处理版本
-    find "${ROOT_DIR}" -type f "(" "${find_expr[@]}" ")" -print0 | \
+    find "${ROOT_DIR}" \
+        -path "${ROOT_DIR}/third-party" -prune -o \
+        -type f \( "${find_expr[@]}" \) -print0 | \
         while IFS= read -r -d '' file; do
             format_file "$file"
         done

@@ -573,7 +573,7 @@ namespace asio {
             return boost::posix_time::pos_infin;
 #else // defined(ASIO_HAS_BOOST_DATE_TIME) \
         // && defined(ASIO_USE_BOOST_DATE_TIME_FOR_SOCKET_IOSTREAM)
-            return (time_point::max)();
+            return (time_point::max) ();
 #endif// defined(ASIO_HAS_BOOST_DATE_TIME) \
         // && defined(ASIO_USE_BOOST_DATE_TIME_FOR_SOCKET_IOSTREAM)
         }

@@ -27,7 +27,7 @@ ZEN_API void astra_client_destroy(AstraClient_C *client);
 
 // 通用命令执行
 ZEN_API RespValue_C *astra_client_send_command(AstraClient_C *client, const char **argv,
-                                       int argc);
+                                               int argc);
 
 // 响应值操作
 ZEN_API RespType_C astra_resp_value_type(const RespValue_C *value);
@@ -35,18 +35,18 @@ ZEN_API const char *astra_resp_value_get_string(const RespValue_C *value);
 ZEN_API int64 astra_resp_value_get_integer(const RespValue_C *value);
 ZEN_API size_t astra_resp_value_array_size(const RespValue_C *value);
 ZEN_API const RespValue_C *astra_resp_value_array_element(const RespValue_C *value,
-                                                  size_t index);
+                                                          size_t index);
 ZEN_API void astra_resp_value_destroy(RespValue_C *value);
 
 // 常用命令封装
 ZEN_API RespValue_C *astra_client_ping(AstraClient_C *client);
 ZEN_API RespValue_C *astra_client_set(AstraClient_C *client, const char *key,
-                              const char *value);
+                                      const char *value);
 ZEN_API RespValue_C *astra_client_setex(AstraClient_C *client, const char *key,
-                                const char *value, int ttl);
+                                        const char *value, int ttl);
 ZEN_API RespValue_C *astra_client_get(AstraClient_C *client, const char *key);
 ZEN_API RespValue_C *astra_client_del(AstraClient_C *client, const char **keys,
-                              int key_count);
+                                      int key_count);
 ZEN_API RespValue_C *astra_client_keys(AstraClient_C *client, const char *pattern);
 ZEN_API RespValue_C *astra_client_ttl(AstraClient_C *client, const char *key);
 ZEN_API RespValue_C *astra_client_exists(AstraClient_C *client, const char *key);
