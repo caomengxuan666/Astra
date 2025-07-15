@@ -3,6 +3,7 @@
 #include <core/noncopyable.hpp>
 #define FMT_HEADER_ONLY
 #include <fmt/color.h>
+#include <fmt/format.h>
 #include <fmt/core.h>
 #include <iomanip>
 #include <memory>
@@ -122,6 +123,5 @@ namespace Astra {
 #define ZEN_LOG_ERROR(...) Astra::Logger::GetInstance().Error(__VA_ARGS__)
 #define ZEN_LOG_FATAL(...) Astra::Logger::GetInstance().Fatal(__VA_ARGS__)
 #define ZEN_SET_LEVEL(level) Astra::Logger::GetInstance().SetLevel(level)// 添加设置日志级别宏
-
 
 }// namespace Astra

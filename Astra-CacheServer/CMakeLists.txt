@@ -4,12 +4,32 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-add_executable(Astra-CacheServer server.cpp persistence/util_path.cpp persistence/process.cpp)
+# 通用的文件
+set(SERVER_SOURCE
+        server.cpp
+        persistence/util_path.cpp 
+        persistence/process.cpp
+)
+
+# WINDOWS 平台特有的文件
+set(WIN_SOURCE
+        platform/windows/WindowsPlugin.cpp
+)
+
+if(WIN32)
+add_executable(Astra-CacheServer ${SERVER_SOURCE} ${WIN_SOURCE})
+else()
+add_executable(Astra-CacheServer ${SERVER_SOURCE})
+endif()
 
 target_link_libraries(Astra-CacheServer zenutils)
 
-add_library(Astra-CacheSDK SHARED sdk/astra_client.cpp persistence/util_path.cpp sdk/astra_client_c.cpp
-        persistence/process.cpp)
+add_library(Astra-CacheSDK SHARED
+        sdk/astra_client.cpp
+        persistence/util_path.cpp 
+        sdk/astra_client_c.cpp
+        persistence/process.cpp
+)
 
 target_compile_definitions(Astra-CacheSDK PRIVATE ZEN_DLL_EXPORT)
 target_link_libraries(Astra-CacheSDK PRIVATE zenutils)

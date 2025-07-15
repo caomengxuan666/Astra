@@ -86,10 +86,10 @@ inline void AsioIOServicePool::Stop() {
             try {
                 t.join();// 只 join 其他线程
             } catch (const std::system_error &e) {
-                ZEN_LOG_WARN("Failed to join thread {}: {}", t.get_id(), e.what());
+                //ZEN_LOG_WARN("Failed to join thread {}: {}", t.get_id(), e.what());
             }
         } else {
-            ZEN_LOG_DEBUG("Skipping current thread {}", t.get_id());
+            //ZEN_LOG_DEBUG("Skipping current thread {}", t.get_id());
         }
     }
 }

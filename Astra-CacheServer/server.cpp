@@ -11,10 +11,16 @@
 #include <cstdlib>
 #include <memory>
 
+// 仅在Windows平台包含插件头文件
+#ifdef _WIN32
+#include "platform/windows/WindowsPlugin.h"
+#endif
+
 using namespace Astra;
 using namespace Astra::utils;
 using namespace Astra::Persistence;
-// Map log level string to LogLevel enum
+
+// 日志级别解析
 inline static Astra::LogLevel parseLogLevel(const std::string &levelStr) {
     static const std::unordered_map<std::string, Astra::LogLevel> levels = {
             {"trace", Astra::LogLevel::TRACE},
@@ -31,47 +37,39 @@ inline static Astra::LogLevel parseLogLevel(const std::string &levelStr) {
     throw std::invalid_argument("Invalid log level: " + levelStr);
 }
 
+// 控制台LOGO输出
 void writeLogoToConsole(int port, size_t maxLRUSize, const std::string &persistenceFile) {
-    // 获取当前进程ID和时间
-
-    auto pid= get_pid_str();
+    std::string pid = get_pid_str();
     auto timeStr = Astra::Logger::GetInstance().CurrentTimestamp();
 
-    // Redis风格的启动头信息
     fmt::print(fg(fmt::color::light_yellow),
                "{}:C {} * oO0OoO0OoO0Oo Astra-CacheServer is starting oO0OoO0OoO0Oo\n",
                pid, timeStr);
 
-    // 3D Redis风格的艺术字 (红色)
     fmt::print(fg(fmt::color::light_yellow), R"(
                 _._                                                  
            _.-``__ ''-._                                             
       _.-``    `.  `_.  ''-._           Astra-CacheServer            
   .-`` .-```.  ```\/    _.,_ ''-._     )");
 
-    // 版本信息(保持青色)
     fmt::print(fg(fmt::color::cyan), "v1.0.0");
     fmt::print(fg(fmt::color::light_yellow), R"( (64 bit)
  (    '      ,       .-`  | `,    )     )");
 
-    // 运行模式(黄色)
     fmt::print(fg(fmt::color::light_yellow), "Standalone mode");
     fmt::print(fg(fmt::color::light_yellow), R"(
  |`-._`-...-` __...-.``-._|'` _.-'|     Port: )");
 
-    // 端口号(青色)
     fmt::print(fg(fmt::color::cyan), "{}", port);
     fmt::print(fg(fmt::color::light_yellow), R"(
  |    `-._   `._    /     _.-'    |     PID: )");
 
-    // PID(青色)
     fmt::print(fg(fmt::color::cyan), "{}", pid);
     fmt::print(fg(fmt::color::light_yellow), R"(
   `-._    `-._  `-./  _.-'    _.-'                                   
  |`-._`-._    `-.__.-'    _.-'_.-'|                                  
  |    `-._`-._        _.-'_.-'    |           )");
 
-    // 项目URL(黄色)
     fmt::print(fg(fmt::color::light_yellow), "https://github.com/caomengxuan666/Astra");
     fmt::print(fg(fmt::color::light_yellow), R"(
   `-._    `-._`-.__.-'_.-'    _.-'                                   
@@ -83,7 +81,6 @@ void writeLogoToConsole(int port, size_t maxLRUSize, const std::string &persiste
               `-.__.-'                                               
 )");
 
-    // ASTRA的LOGO (青色)
     fmt::print(fg(fmt::color::cyan), R"(
  █████╗ ███████╗████████╗██████╗  █████╗ 
 ██╔══██╗██╔════╝╚══██╔══╝██╔══██╗██╔══██╗
@@ -93,7 +90,6 @@ void writeLogoToConsole(int port, size_t maxLRUSize, const std::string &persiste
 ╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝
 )");
 
-    // 配置信息 (黄色)
     fmt::print(fg(fmt::color::light_yellow),
                "{}:M {} * Max LRU Size: {}\n", pid, timeStr, maxLRUSize);
     fmt::print(fg(fmt::color::light_yellow),
@@ -104,27 +100,26 @@ void writeLogoToConsole(int port, size_t maxLRUSize, const std::string &persiste
                "{}:M {} * Initializing server...\n", pid, timeStr);
 }
 
-int main(int argc, char *argv[]) {
-    // Define command line options
-    args::ArgumentParser parser("Astra-Cache Server", "A Redis-compatible Astra Cache server.");
-    args::ValueFlag<int> port(parser, "port", "Port number to listen on", {'p', "port"}, 6380);
-    args::ValueFlag<std::string> logLevelStr(parser, "level", "Log level: trace, debug, info, warn, error, fatal",
-                                             {'l', "loglevel"}, "info");
-
-    // 获取用户主目录，跨平台实现
+// 服务器启动核心逻辑（抽取为独立函数，供主程序和服务模式调用）
+int startServer(int argc, char* argv[]) {
+    // 获取用户主目录
     fs::path homeDir;
-    const char*homeEnv=Astra::utils::getEnv();
+    const char* homeEnv = Astra::utils::getEnv();
     if (homeEnv) {
         homeDir = homeEnv;
     } else {
-        // 如果无法获取环境变量，使用当前目录
         homeDir = fs::current_path();
         ZEN_LOG_WARN("无法获取用户主目录，使用当前目录: {}", homeDir.string());
     }
 
-    // 构建跨平台的路径
+    // 构建持久化文件路径
     fs::path dumpFilePath = homeDir / ".astra" / "cache_dump.rdb";
 
+    // 解析命令行参数
+    args::ArgumentParser parser("Astra-Cache Server", "A Redis-compatible Astra Cache server.");
+    args::ValueFlag<int> port(parser, "port", "Port number to listen on", {'p', "port"}, 6380);
+    args::ValueFlag<std::string> logLevelStr(parser, "level", "Log level: trace, debug, info, warn, error, fatal",
+                                             {'l', "loglevel"}, "info");
     args::ValueFlag<std::string> coreDump(parser, "filename", "Core dump file name", {'c', "coredump"},
                                           dumpFilePath.string());
     args::ValueFlag<size_t> maxLRUSize(parser, "size", "Maximum size of LRU cache", {'m', "maxsize"}, 100000);
@@ -140,13 +135,13 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Get values from command line
+    // 提取参数值
     int listeningPort = args::get(port);
     std::string logLevelRaw = args::get(logLevelStr);
     std::string persistence_file_name = args::get(coreDump);
     size_t lru_max_size = args::get(maxLRUSize);
 
-    // Set log level
+    // 设置日志级别
     try {
         Astra::LogLevel level = parseLogLevel(logLevelRaw);
         ZEN_SET_LEVEL(level);
@@ -154,10 +149,19 @@ int main(int argc, char *argv[]) {
         std::cerr << e.what() << std::endl;
         return 2;
     }
+
+    // 非服务模式下输出LOGO
+#ifndef _WIN32
     writeLogoToConsole(listeningPort, lru_max_size, persistence_file_name);
+#else
+    // Windows平台下只有非服务模式才输出LOGO
+    if (!WindowsServicePlugin::isServiceMode(argc, argv)) {
+        writeLogoToConsole(listeningPort, lru_max_size, persistence_file_name);
+    }
+#endif
 
     try {
-        // 创建 io_service 线程池（线程在这里就启动了）
+        // 创建IO线程池
         auto pool = AsioIOServicePool::GetInstance();
         asio::io_context &io_context = pool->GetIOService();
         asio::signal_set signals(io_context, SIGINT, SIGTERM);
@@ -165,26 +169,23 @@ int main(int argc, char *argv[]) {
         // 创建服务器实例
         auto server = std::make_shared<Astra::apps::AstraCacheServer>(io_context, lru_max_size, persistence_file_name);
 
-        // 添加信号处理逻辑
+        // 信号处理
         signals.async_wait([server_weak = std::weak_ptr<Astra::apps::AstraCacheServer>(server)](
                                    const asio::error_code &, int) {
             if (auto server = server_weak.lock()) {
                 ZEN_LOG_INFO("Shutting down server...");
-                server->Stop();// 停止服务器资源
+                server->Stop();
             }
 
             ZEN_LOG_INFO("Stopping IO context pool...");
             std::quick_exit(0);
-            //AsioIOServicePool::GetInstance()->Stop();// 容易和线程池冲突，没有释放的必要
-
-            ZEN_LOG_INFO("Graceful shutdown complete.");
         });
 
-        // 启动服务器监听
+        // 启动服务器
         server->Start(listeningPort);
         ZEN_LOG_INFO("Astra-CacheServer started on port {}", listeningPort);
 
-        // 主线程也运行 io_context（用于事件循环和信号处理）
+        // 运行IO上下文
         io_context.run();
 
     } catch (const std::exception &e) {
@@ -193,4 +194,62 @@ int main(int argc, char *argv[]) {
     }
 
     return 0;
+}
+
+int main(int argc, char *argv[]) {
+    // ********** 优先处理服务控制命令（关键修改）**********
+#ifdef _WIN32
+    // 先判断是否是服务控制命令（install/start/stop等），避免被args库解析
+    if (argc >= 2) {
+        std::string command = argv[1];
+        // 服务命令列表（这些命令不被args库解析）
+        if (command == "install" || command == "uninstall" || 
+            command == "start" || command == "stop" || command == "autostart") {
+            WindowsServicePlugin winPlugin;
+            if (command == "install") {
+                char path[MAX_PATH];
+                GetModuleFileNameA(NULL, path, MAX_PATH);
+                std::vector<std::string> args;
+                for (int i = 2; i < argc; i++) {
+                    args.push_back(argv[i]);
+                }
+                bool success = winPlugin.install(path, args);
+                std::cout << (success ? "Service installed successfully" : "Failed to install service") << std::endl;
+                return success ? 0 : 1;
+            } else if (command == "uninstall") {
+                bool success = winPlugin.uninstall();
+                std::cout << (success ? "Service uninstalled successfully" : "Failed to uninstall service") << std::endl;
+                return success ? 0 : 1;
+            } else if (command == "start") {
+                bool success = winPlugin.start();
+                std::cout << (success ? "Service started successfully" : "Failed to start service") << std::endl;
+                return success ? 0 : 1;
+            } else if (command == "stop") {
+                bool success = winPlugin.stop();
+                std::cout << (success ? "Service stopped successfully" : "Failed to stop service") << std::endl;
+                return success ? 0 : 1;
+            } else if (command == "autostart") {
+                bool enable = (argc < 3) || (std::string(argv[2]) != "off");
+                bool success = winPlugin.setAutoStart(enable);
+                std::cout << (success ? 
+                    (enable ? "Auto-start enabled" : "Auto-start disabled") : 
+                    "Failed to set auto-start") << std::endl;
+                return success ? 0 : 1;
+            }
+        }
+    }
+#endif
+
+    // ********** 服务命令处理完毕后，再解析普通参数 **********
+    // 检查是否为服务模式启动
+#ifdef _WIN32
+    WindowsServicePlugin winPlugin;
+    if (winPlugin.isServiceMode(argc, argv)) {
+        winPlugin.runService();
+        return 0;
+    }
+#endif
+
+    // 通用服务器启动逻辑
+    return startServer(argc, argv);
 }
