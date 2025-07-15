@@ -101,10 +101,10 @@ void writeLogoToConsole(int port, size_t maxLRUSize, const std::string &persiste
 }
 
 // 服务器启动核心逻辑（抽取为独立函数，供主程序和服务模式调用）
-int startServer(int argc, char* argv[]) {
+int startServer(int argc, char *argv[]) {
     // 获取用户主目录
     fs::path homeDir;
-    const char* homeEnv = Astra::utils::getEnv();
+    const char *homeEnv = Astra::utils::getEnv();
     if (homeEnv) {
         homeDir = homeEnv;
     } else {
@@ -203,7 +203,7 @@ int main(int argc, char *argv[]) {
     if (argc >= 2) {
         std::string command = argv[1];
         // 服务命令列表（这些命令不被args库解析）
-        if (command == "install" || command == "uninstall" || 
+        if (command == "install" || command == "uninstall" ||
             command == "start" || command == "stop" || command == "autostart") {
             WindowsServicePlugin winPlugin;
             if (command == "install") {
@@ -231,9 +231,7 @@ int main(int argc, char *argv[]) {
             } else if (command == "autostart") {
                 bool enable = (argc < 3) || (std::string(argv[2]) != "off");
                 bool success = winPlugin.setAutoStart(enable);
-                std::cout << (success ? 
-                    (enable ? "Auto-start enabled" : "Auto-start disabled") : 
-                    "Failed to set auto-start") << std::endl;
+                std::cout << (success ? (enable ? "Auto-start enabled" : "Auto-start disabled") : "Failed to set auto-start") << std::endl;
                 return success ? 0 : 1;
             }
         }

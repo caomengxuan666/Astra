@@ -1,16 +1,16 @@
 // astra_client.cpp
 #include "astra_client.hpp"
 #include "sdk/commands.hpp"
+#include <cstring>
+#include <stdexcept>
 #include <string>
 #include <vector>
-#include <stdexcept>
-#include <cstring>
 
 // Windows平台网络编程头文件
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#pragma comment(lib, "ws2_32.lib")  // 链接Windows Sockets库
+#pragma comment(lib, "ws2_32.lib")// 链接Windows Sockets库
 #else
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -29,45 +29,45 @@ namespace Astra::Client {
 
     // Windows平台初始化Winsock
     void InitWinsock() {
-        #ifdef _WIN32
+#ifdef _WIN32
         WSADATA wsaData;
         int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
         if (iResult != 0) {
             throw std::runtime_error("WSAStartup failed");
         }
-        #endif
+#endif
     }
 
     // Windows平台清理Winsock
     void CleanupWinsock() {
-        #ifdef _WIN32
+#ifdef _WIN32
         WSACleanup();
-        #endif
+#endif
     }
 
     AstraClient::AstraClient(const std::string &host, int port)
         : host_(host), port_(port), sockfd_(-1) {
-        InitWinsock();  // 初始化Winsock
+        InitWinsock();// 初始化Winsock
         Connect();
     }
 
     AstraClient::~AstraClient() {
         Disconnect();
-        CleanupWinsock();  // 清理Winsock
+        CleanupWinsock();// 清理Winsock
     }
 
     void AstraClient::Connect() {
-        #ifdef _WIN32
+#ifdef _WIN32
         sockfd_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-        #else
+#else
         sockfd_ = socket(AF_INET, SOCK_STREAM, 0);
-        #endif
+#endif
 
         if (sockfd_ == -1) {
             throw std::runtime_error("Failed to create socket");
         }
 
-        #ifdef _WIN32
+#ifdef _WIN32
         sockaddr_in server_addr{};
         server_addr.sin_family = AF_INET;
         server_addr.sin_port = htons(port_);
@@ -75,12 +75,12 @@ namespace Astra::Client {
         // 转换IP地址
         inet_pton(AF_INET, host_.c_str(), &server_addr.sin_addr);
 
-        if (connect(sockfd_, reinterpret_cast<sockaddr*>(&server_addr), sizeof(server_addr)) == SOCKET_ERROR) {
+        if (connect(sockfd_, reinterpret_cast<sockaddr *>(&server_addr), sizeof(server_addr)) == SOCKET_ERROR) {
             int error = WSAGetLastError();
             closesocket(sockfd_);
             throw std::runtime_error("Failed to connect to server: " + std::to_string(error));
         }
-        #else
+#else
         sockaddr_in server_addr{};
         server_addr.sin_family = AF_INET;
         server_addr.sin_port = htons(port_);
@@ -90,16 +90,16 @@ namespace Astra::Client {
             close(sockfd_);
             throw std::runtime_error("Failed to connect to server");
         }
-        #endif
+#endif
     }
 
     void AstraClient::Disconnect() {
         if (sockfd_ != -1) {
-            #ifdef _WIN32
+#ifdef _WIN32
             closesocket(sockfd_);
-            #else
+#else
             close(sockfd_);
-            #endif
+#endif
             sockfd_ = -1;
         }
     }

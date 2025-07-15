@@ -1593,7 +1593,7 @@ namespace asio {
             if (size_ != (std::numeric_limits<std::size_t>::max)())
                 return size_;
 #endif// !defined(ASIO_NO_DYNAMIC_BUFFER_V1)
-            return (std::min)(string_.size(), max_size());
+            return (std::min) (string_.size(), max_size());
         }
 
         /// Get the maximum size of the dynamic buffer.
@@ -1611,7 +1611,7 @@ namespace asio {
    * max_size(). Otherwise returns max_size().
    */
         std::size_t capacity() const noexcept {
-            return (std::min)(string_.capacity(), max_size());
+            return (std::min) (string_.capacity(), max_size());
         }
 
 #if !defined(ASIO_NO_DYNAMIC_BUFFER_V1)
@@ -1713,7 +1713,7 @@ namespace asio {
    * output sequence is moved to the input sequence and no error is issued.
    */
         void commit(std::size_t n) {
-            size_ += (std::min)(n, string_.size() - size_);
+            size_ += (std::min) (n, string_.size() - size_);
             string_.resize(size_);
         }
 #endif// !defined(ASIO_NO_DYNAMIC_BUFFER_V1)
@@ -1760,7 +1760,7 @@ namespace asio {
         void consume(std::size_t n) {
 #if !defined(ASIO_NO_DYNAMIC_BUFFER_V1)
             if (size_ != (std::numeric_limits<std::size_t>::max)()) {
-                std::size_t consume_length = (std::min)(n, size_);
+                std::size_t consume_length = (std::min) (n, size_);
                 string_.erase(0, consume_length);
                 size_ -= consume_length;
                 return;
@@ -1841,7 +1841,7 @@ namespace asio {
             if (size_ != (std::numeric_limits<std::size_t>::max)())
                 return size_;
 #endif// !defined(ASIO_NO_DYNAMIC_BUFFER_V1)
-            return (std::min)(vector_.size(), max_size());
+            return (std::min) (vector_.size(), max_size());
         }
 
         /// Get the maximum size of the dynamic buffer.
@@ -1863,7 +1863,7 @@ namespace asio {
    * Otherwise returns max_size().
    */
         std::size_t capacity() const noexcept {
-            return (std::min)(vector_.capacity(), max_size());
+            return (std::min) (vector_.capacity(), max_size());
         }
 
 #if !defined(ASIO_NO_DYNAMIC_BUFFER_V1)
@@ -1966,7 +1966,7 @@ namespace asio {
    * output sequence is moved to the input sequence and no error is issued.
    */
         void commit(std::size_t n) {
-            size_ += (std::min)(n, vector_.size() - size_);
+            size_ += (std::min) (n, vector_.size() - size_);
             vector_.resize(size_);
         }
 #endif// !defined(ASIO_NO_DYNAMIC_BUFFER_V1)
@@ -2013,13 +2013,13 @@ namespace asio {
         void consume(std::size_t n) {
 #if !defined(ASIO_NO_DYNAMIC_BUFFER_V1)
             if (size_ != (std::numeric_limits<std::size_t>::max)()) {
-                std::size_t consume_length = (std::min)(n, size_);
+                std::size_t consume_length = (std::min) (n, size_);
                 vector_.erase(vector_.begin(), vector_.begin() + consume_length);
                 size_ -= consume_length;
                 return;
             }
 #endif// !defined(ASIO_NO_DYNAMIC_BUFFER_V1)
-            vector_.erase(vector_.begin(), vector_.begin() + (std::min)(size(), n));
+            vector_.erase(vector_.begin(), vector_.begin() + (std::min) (size(), n));
         }
 
     private:

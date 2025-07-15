@@ -98,15 +98,15 @@ namespace asio {
 
             template<ASIO_COMPLETION_TOKEN_FOR(Signatures...) CompletionToken>
             auto operator()(CompletionToken &&token) && -> decltype(async_initiate<CompletionToken, Signatures...>(
-                                                                initiate(), token, static_cast<Head &&>(this->head_),
-                                                                static_cast<Tail &&>(this->tail_))) {
+                    initiate(), token, static_cast<Head &&>(this->head_),
+                    static_cast<Tail &&>(this->tail_))) {
                 return async_initiate<CompletionToken, Signatures...>(initiate(),
                                                                       token, static_cast<Head &&>(head_), static_cast<Tail &&>(tail_));
             }
 
             template<ASIO_COMPLETION_TOKEN_FOR(Signatures...) CompletionToken>
             auto operator()(CompletionToken &&token) const & -> decltype(async_initiate<CompletionToken, Signatures...>(
-                                                                     initiate(), token, this->head_, this->tail_)) {
+                    initiate(), token, this->head_, this->tail_)) {
                 return async_initiate<CompletionToken, Signatures...>(
                         initiate(), token, head_, tail_);
             }
@@ -227,8 +227,8 @@ namespace asio {
         /// Initiate the deferred operation using the supplied completion token.
         template<ASIO_COMPLETION_TOKEN_FOR(void(Values...)) CompletionToken>
         auto operator()(CompletionToken &&token) && -> decltype(this->invoke_helper(
-                                                            static_cast<CompletionToken &&>(token),
-                                                            detail::index_sequence_for<Values...>())) {
+                static_cast<CompletionToken &&>(token),
+                detail::index_sequence_for<Values...>())) {
             return this->invoke_helper(
                     static_cast<CompletionToken &&>(token),
                     detail::index_sequence_for<Values...>());
@@ -236,8 +236,8 @@ namespace asio {
 
         template<ASIO_COMPLETION_TOKEN_FOR(void(Values...)) CompletionToken>
         auto operator()(CompletionToken &&token) const & -> decltype(this->const_invoke_helper(
-                                                                 static_cast<CompletionToken &&>(token),
-                                                                 detail::index_sequence_for<Values...>())) {
+                static_cast<CompletionToken &&>(token),
+                detail::index_sequence_for<Values...>())) {
             return this->const_invoke_helper(
                     static_cast<CompletionToken &&>(token),
                     detail::index_sequence_for<Values...>());
@@ -290,8 +290,8 @@ namespace asio {
         /// Initiate the asynchronous operation using the supplied completion token.
         template<ASIO_COMPLETION_TOKEN_FOR(Signature) CompletionToken>
         auto operator()(CompletionToken &&token) && -> decltype(this->invoke_helper(
-                                                            static_cast<CompletionToken &&>(token),
-                                                            detail::index_sequence_for<InitArgs...>())) {
+                static_cast<CompletionToken &&>(token),
+                detail::index_sequence_for<InitArgs...>())) {
             return this->invoke_helper(
                     static_cast<CompletionToken &&>(token),
                     detail::index_sequence_for<InitArgs...>());
@@ -299,8 +299,8 @@ namespace asio {
 
         template<ASIO_COMPLETION_TOKEN_FOR(Signature) CompletionToken>
         auto operator()(CompletionToken &&token) const & -> decltype(this->const_invoke_helper(
-                                                                 static_cast<CompletionToken &&>(token),
-                                                                 detail::index_sequence_for<InitArgs...>())) {
+                static_cast<CompletionToken &&>(token),
+                detail::index_sequence_for<InitArgs...>())) {
             return this->const_invoke_helper(
                     static_cast<CompletionToken &&>(token),
                     detail::index_sequence_for<InitArgs...>());
@@ -348,8 +348,8 @@ namespace asio {
         /// Initiate the asynchronous operation using the supplied completion token.
         template<ASIO_COMPLETION_TOKEN_FOR(Signatures...) CompletionToken>
         auto operator()(CompletionToken &&token) && -> decltype(this->invoke_helper(
-                                                            static_cast<CompletionToken &&>(token),
-                                                            detail::index_sequence_for<InitArgs...>())) {
+                static_cast<CompletionToken &&>(token),
+                detail::index_sequence_for<InitArgs...>())) {
             return this->invoke_helper(
                     static_cast<CompletionToken &&>(token),
                     detail::index_sequence_for<InitArgs...>());
@@ -357,8 +357,8 @@ namespace asio {
 
         template<ASIO_COMPLETION_TOKEN_FOR(Signatures...) CompletionToken>
         auto operator()(CompletionToken &&token) const & -> decltype(this->const_invoke_helper(
-                                                                 static_cast<CompletionToken &&>(token),
-                                                                 detail::index_sequence_for<InitArgs...>())) {
+                static_cast<CompletionToken &&>(token),
+                detail::index_sequence_for<InitArgs...>())) {
             return this->const_invoke_helper(
                     static_cast<CompletionToken &&>(token),
                     detail::index_sequence_for<InitArgs...>());

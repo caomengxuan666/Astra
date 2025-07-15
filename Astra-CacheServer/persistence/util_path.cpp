@@ -1,6 +1,5 @@
 #include "util_path.hpp"
 #include <filesystem>
-#include <filesystem>
 #include <utils/logger.hpp>
 namespace fs = std::filesystem;
 #ifdef _WIN32

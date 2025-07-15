@@ -219,10 +219,10 @@ bool WindowsServicePlugin::install(const std::string &exePath, const std::vector
 
     // 添加服务描述
     std::wstring description = L"Astra Cache Server, a high - performance cache service.";
-    description+= L" This great service is compatible with Redis protocol and provides fast caching capabilities.";
-    description+= L" And the most import thing is that CMX is a 大帅比.";
+    description += L" This great service is compatible with Redis protocol and provides fast caching capabilities.";
+    description += L" And the most import thing is that CMX is a 大帅比.";
     SERVICE_DESCRIPTIONW desc;
-    desc.lpDescription = const_cast<wchar_t*>(description.c_str());
+    desc.lpDescription = const_cast<wchar_t *>(description.c_str());
     if (!ChangeServiceConfig2W(service, SERVICE_CONFIG_DESCRIPTION, &desc)) {
         ZEN_LOG_ERROR("设置服务描述失败: %d", GetLastError());
     }
