@@ -11,6 +11,7 @@ target_link_libraries(Astra-CacheServer zenutils)
 add_library(Astra-CacheSDK SHARED sdk/astra_client.cpp persistence/util_path.cpp sdk/astra_client_c.cpp
         persistence/process.cpp)
 
+target_compile_definitions(Astra-CacheSDK PRIVATE ZEN_DLL_EXPORT)
 target_link_libraries(Astra-CacheSDK PRIVATE zenutils)
 
 add_subdirectory(examples)

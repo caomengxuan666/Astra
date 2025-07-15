@@ -6,3 +6,4 @@ third-party/mimalloc/bin
 /.idea
 /out
 /.vs
+/.vscode
