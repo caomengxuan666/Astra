@@ -1,7 +1,7 @@
 #include "core/astra.hpp"
 #include "datastructures/object_pool.hpp"
 #include <gtest/gtest.h>
-
+#undef GetObject
 class TestObject : public ObjectBase<TestObject> {
 public:
     int value;

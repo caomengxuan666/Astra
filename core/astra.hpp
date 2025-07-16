@@ -113,6 +113,7 @@
 #include <Windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#undef ERROR
 
 #else//linux
 #include <arpa/inet.h>

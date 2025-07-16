@@ -35,6 +35,10 @@ if(WIN32)
             WIN32_LEAN_AND_MEAN     # 避免 windows.h 包含 WinSock.h 等冗余内容
             _WINSOCK_DEPRECATED_NO_WARNINGS  # 可选：避免 WinSock 老函数警告
     )
+    if(MSVC)
+    # 为MSVC编译器添加UTF-8编码支持
+    add_compile_options("/utf-8")
+endif()
 endif()
 
 
@@ -54,4 +58,4 @@ add_subdirectory(Astra-CacheServer)
 
 # 测试
 enable_testing()
-#add_subdirectory(tests)
+add_subdirectory(tests)

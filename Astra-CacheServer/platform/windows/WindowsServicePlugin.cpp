@@ -1,5 +1,5 @@
 #ifdef _WIN32
-#include "WindowsPlugin.h"
+#include "WindowsServicePlugin.h"
 #include "args.hxx"
 #include "network/io_context_pool.hpp"
 #include "persistence/util_path.hpp"

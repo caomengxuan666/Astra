@@ -13,8 +13,12 @@ set(SERVER_SOURCE
 
 # WINDOWS 平台特有的文件
 set(WIN_SOURCE
-        platform/windows/WindowsPlugin.cpp
+        platform/windows/WindowsServicePlugin.cpp
+        platform/windows/WindowsTrayPlugin.cpp
+        platform/windows/ClientWindow.cpp
 )
+
+
 
 if(WIN32)
 add_executable(Astra-CacheServer ${SERVER_SOURCE} ${WIN_SOURCE})
