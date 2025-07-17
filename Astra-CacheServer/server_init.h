@@ -5,18 +5,19 @@
 #ifndef SERVER_INIT_H
 #define SERVER_INIT_H
 
-#include "server/server.hpp"
 #include "args.hxx"
 #include "core/astra.hpp"
 #include "fmt/color.h"
 #include "network/io_context_pool.hpp"
 #include "persistence/process.hpp"
 #include "persistence/util_path.hpp"
+#include "server/server.hpp"
 #include "utils/logger.hpp"
 #include <asio/io_context.hpp>
 #include <asio/signal_set.hpp>
 #include <cstdlib>
 #include <memory>
+
 
 // 仅在Windows平台包含插件头文件
 #ifdef _WIN32
@@ -27,24 +28,25 @@ using namespace Astra;
 using namespace Astra::utils;
 using namespace Astra::Persistence;
 
+
 // 用于创建独立进程的函数示例
-bool StartTrayProcess(const std::wstring& executablePath) {
-    STARTUPINFOW si = {0};  // 使用宽字符版本的STARTUPINFO
+inline static bool StartTrayProcess(const std::wstring &executablePath) {
+    STARTUPINFOW si = {0};// 使用宽字符版本的STARTUPINFO
     PROCESS_INFORMATION pi = {0};
     si.cb = sizeof(STARTUPINFOW);
 
     // 创建独立进程，使用宽字符版本CreateProcessW
     BOOL success = CreateProcessW(
-        executablePath.c_str(),  // 应用程序路径（宽字符）
-        NULL,                    // 命令行参数
-        NULL,                    // 进程安全属性
-        NULL,                    // 线程安全属性
-        FALSE,                   // 继承句柄
-        0,                       // 创建标志
-        NULL,                    // 环境变量
-        NULL,                    // 当前目录
-        &si,                     // 启动信息（宽字符版本）
-        &pi                      // 进程信息
+            executablePath.c_str(),// 应用程序路径（宽字符）
+            NULL,                  // 命令行参数
+            NULL,                  // 进程安全属性
+            NULL,                  // 线程安全属性
+            FALSE,                 // 继承句柄
+            0,                     // 创建标志
+            NULL,                  // 环境变量
+            NULL,                  // 当前目录
+            &si,                   // 启动信息（宽字符版本）
+            &pi                    // 进程信息
     );
 
     if (success) {
@@ -75,9 +77,9 @@ inline static Astra::LogLevel parseLogLevel(const std::string &levelStr) {
 }
 
 // 控制台LOGO输出
-void writeLogoToConsole(int port, size_t maxLRUSize, const std::string &persistenceFile) {
+inline static void writeLogoToConsole(int port, size_t maxLRUSize, const std::string &persistenceFile) noexcept {
     std::string pid = get_pid_str();
-    auto timeStr = Astra::Logger::GetInstance().CurrentTimestamp();
+    auto timeStr = Astra::Logger::GetInstance().GetTimestamp();
 
     fmt::print(fg(fmt::color::light_yellow),
                "{}:C {} * oO0OoO0OoO0Oo Astra-CacheServer is starting oO0OoO0OoO0Oo\n",
@@ -137,8 +139,8 @@ void writeLogoToConsole(int port, size_t maxLRUSize, const std::string &persiste
                "{}:M {} * Initializing server...\n", pid, timeStr);
 }
 
-// 服务器启动核心逻辑（抽取为独立函数，供主程序和服务模式调用）
-int startServer(int argc, char *argv[]) {
+// 服务器启动核心逻辑（非服务模式）
+inline int startServer(int argc, char *argv[]) noexcept {
     // 获取用户主目录
     fs::path homeDir;
     const char *homeEnv = Astra::utils::getEnv();
@@ -187,15 +189,7 @@ int startServer(int argc, char *argv[]) {
         return 2;
     }
 
-    // 非服务模式下输出LOGO
-#ifndef _WIN32
     writeLogoToConsole(listeningPort, lru_max_size, persistence_file_name);
-#else
-    // Windows平台下只有非服务模式才输出LOGO
-    if (!WindowsServicePlugin::isServiceMode(argc, argv)) {
-        writeLogoToConsole(listeningPort, lru_max_size, persistence_file_name);
-    }
-#endif
 
     try {
         // 创建IO线程池
@@ -205,6 +199,7 @@ int startServer(int argc, char *argv[]) {
 
         // 创建服务器实例
         auto server = std::make_shared<Astra::apps::AstraCacheServer>(io_context, lru_max_size, persistence_file_name);
+        server->setEnablePersistence(false);
 
         // 信号处理
         signals.async_wait([server_weak = std::weak_ptr<Astra::apps::AstraCacheServer>(server)](
@@ -238,45 +233,44 @@ int startServer(int argc, char *argv[]) {
 struct ServiceCommandHandler {
     std::string command;
     bool requiresArgs;
-    std::function<bool(WindowsServicePlugin&, int, char**)> handler;
+    std::function<bool(WindowsServicePlugin &, int, char **)> handler;
 };
 
-static const std::vector<ServiceCommandHandler> serviceCommands = {
-    {"install", true, [](WindowsServicePlugin& plugin, int argc, char *argv[]) {
-        char path[MAX_PATH];
-        GetModuleFileNameA(NULL, path, MAX_PATH);
-        std::vector<std::string> args;
-        for (int i = 2; i < argc; i++) {
-            args.push_back(argv[i]);
-        }
-        return plugin.install(path, args);
-    }},
-    {"uninstall", false, [](WindowsServicePlugin& plugin, int, char**) {
-        return plugin.uninstall();
-    }},
-    {"start", false, [](WindowsServicePlugin& plugin, int, char**) {
-        return plugin.start();
-    }},
-    {"stop", false, [](WindowsServicePlugin& plugin, int, char**) {
-        return plugin.stop();
-    }},
-    {"autostart", false, [](WindowsServicePlugin& plugin, int argc, char **argv) {
-        bool enable = (argc < 3) || (std::string(argv[2]) != "off");
-        return plugin.setAutoStart(enable);
-    }}
-};
+inline static const std::vector<ServiceCommandHandler> serviceCommands = {
+        {"install", true, [](WindowsServicePlugin &plugin, int argc, char *argv[]) {
+             char path[MAX_PATH];
+             GetModuleFileNameA(NULL, path, MAX_PATH);
+             std::vector<std::string> args;
+             for (int i = 2; i < argc; i++) {
+                 args.push_back(argv[i]);
+             }
+             return plugin.install(path, args);
+         }},
+        {"uninstall", false, [](WindowsServicePlugin &plugin, int, char **) {
+             return plugin.uninstall();
+         }},
+        {"start", false, [](WindowsServicePlugin &plugin, int, char **) {
+             return plugin.start();
+         }},
+        {"stop", false, [](WindowsServicePlugin &plugin, int, char **) {
+             return plugin.stop();
+         }},
+        {"autostart", false, [](WindowsServicePlugin &plugin, int argc, char **argv) {
+             bool enable = (argc < 3) || (std::string(argv[2]) != "off");
+             return plugin.setAutoStart(enable);
+         }}};
 
 // 处理服务控制命令
-bool handleServiceCommand(int argc, char *argv[]) {
+inline bool handleServiceCommand(int argc, char *argv[]) {
     if (argc < 2) return false;
 
     std::string command = argv[1];
-    for (const auto& cmd : serviceCommands) {
+    for (const auto &cmd: serviceCommands) {
         if (command == cmd.command) {
             WindowsServicePlugin winPlugin;
             bool success = cmd.handler(winPlugin, argc, argv);
             std::cout << (success ? "Service " + command + " successfully" : "Failed to " + command + " service") << std::endl;
-            if (command=="start") {
+            if (command == "start") {
                 //StartTrayProcess(L"./TrayPluginExample.exe");
             }
             return success;
@@ -284,6 +278,6 @@ bool handleServiceCommand(int argc, char *argv[]) {
     }
     return false;
 }
-#endif  // _WIN32
+#endif// _WIN32
 
-#endif //SERVER_INIT_H
+#endif//SERVER_INIT_H

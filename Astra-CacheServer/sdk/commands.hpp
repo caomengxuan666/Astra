@@ -35,8 +35,8 @@ namespace Astra::Client::Command {
         std::vector<std::string> GetArgs() const override {
             std::vector<std::string> args = {"SET", key_, value_};
             if (ttl_.has_value()) {
-                args.push_back("EX");
-                args.push_back(std::to_string(ttl_.value().count()));
+                args.emplace_back("EX");
+                args.emplace_back(std::to_string(ttl_.value().count()));
             }
             return args;
         }
@@ -45,6 +45,27 @@ namespace Astra::Client::Command {
         std::string key_;
         std::string value_;
         std::optional<std::chrono::seconds> ttl_;
+    };
+
+    // MSET命令
+    class MSetCommand : public ICommand {
+    public:
+        // 构造函数：接收键值对列表（key1, value1, key2, value2...）
+        explicit MSetCommand(const std::vector<std::pair<std::string, std::string>> &keyValues)
+            : keyValues_(keyValues) {}
+
+        // 生成MSET命令参数：{"MSET", "key1", "value1", "key2", "value2", ...}
+        std::vector<std::string> GetArgs() const override {
+            std::vector<std::string> args = {"MSET"};
+            for (const auto &kv: keyValues_) {
+                args.push_back(kv.first); // 添加键
+                args.push_back(kv.second);// 添加值
+            }
+            return args;
+        }
+
+    private:
+        std::vector<std::pair<std::string, std::string>> keyValues_;// 存储批量键值对
     };
 
     // GET命令
@@ -58,6 +79,21 @@ namespace Astra::Client::Command {
 
     private:
         std::string key_;
+    };
+
+    // MGET命令
+    class MGetCommand : public ICommand {
+    public:
+        explicit MGetCommand(const std::vector<std::string> &keys) : keys_(keys) {}
+
+        std::vector<std::string> GetArgs() const override {
+            std::vector<std::string> args = {"MGET"};
+            args.insert(args.end(), keys_.begin(), keys_.end());// 拼接所有键
+            return args;
+        }
+
+    private:
+        std::vector<std::string> keys_;
     };
 
     // DEL命令

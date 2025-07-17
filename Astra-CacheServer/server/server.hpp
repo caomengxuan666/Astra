@@ -1,5 +1,7 @@
 #pragma once
 
+#include "asio/any_io_executor.hpp"
+#include "asio/strand.hpp"
 #include "caching/AstraCacheStrategy.hpp"
 #include "logger.hpp"
 #include "persistence/persistence.hpp"
@@ -19,28 +21,32 @@ namespace Astra::apps {
                          std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache,
                          std::shared_ptr<concurrent::TaskQueue> global_task_queue)
             : socket_(std::move(socket)),
+              strand_(asio::make_strand(socket_.get_executor())),// 添加strand确保单线程执行
               handler_(std::make_shared<RedisCommandHandler>(cache)),
               task_queue_(std::move(global_task_queue)) {}
 
         void Start() {
             ZEN_LOG_INFO("Client connected from: {}", socket_.remote_endpoint().address().to_string());
             if (!stopped_) {
-                auto self = shared_from_this();
-                task_queue_->Post([self]() {
-                    if (!self->stopped_) {
-                        self->DoRead();
-                    }
+                // 通过strand调度Start操作
+                asio::post(strand_, [self = shared_from_this()]() {
+                    self->DoRead();
                 });
             }
         }
 
         void Stop() {
-            stopped_ = true;
+            asio::post(strand_, [self = shared_from_this()]() {
+                if (self->stopped_) return;
 
-            asio::error_code ec;
-            (void) socket_.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
-            (void) socket_.cancel(ec);// 取消所有异步操作
-            (void) socket_.close(ec);
+                self->stopped_ = true;
+                asio::error_code ec;
+                (void) self->socket_.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
+                (void) self->socket_.cancel(ec);
+                (void) self->socket_.close(ec);
+
+                ZEN_LOG_INFO("Client disconnected");
+            });
         }
 
     private:
@@ -51,63 +57,71 @@ namespace Astra::apps {
         };
 
         void DoRead() {
-            if (stopped_) return;// 如果已关闭，直接返回
+            if (stopped_) return;
 
-            auto self = shared_from_this();
+            // 使用strand确保读操作在单线程执行
             asio::async_read_until(socket_, asio::dynamic_buffer(buffer_), "\r\n",
-                                   [this, self](std::error_code ec, std::size_t bytes_transferred) {
-                                       if (ec) {
-                                           if (ec != asio::error::eof) {
-                                               ZEN_LOG_WARN("Read error: {}", ec.message());
-                                           }
-                                           return;
-                                       }
+                                   asio::bind_executor(strand_,
+                                                       [this, self = shared_from_this()](std::error_code ec, std::size_t bytes_transferred) {
+                                                           if (ec) {
+                                                               if (ec != asio::error::eof) {
+                                                                   ZEN_LOG_WARN("Read error: {}", ec.message());
+                                                               }
+                                                               Stop();
+                                                               return;
+                                                           }
 
-                                       std::string data = buffer_.substr(0, bytes_transferred);
-                                       ZEN_LOG_DEBUG("Received raw data: {}", data);
+                                                           ProcessBuffer();
 
-                                       if (!stopped_) {
-                                           self->ProcessBuffer();
-
-                                           if (!stopped_) {
-                                               self->DoRead();// 直接调用而不是 Post
-                                           }
-                                       }
-                                   });
+                                                           if (!stopped_) {
+                                                               DoRead();
+                                                           }
+                                                       }));
         }
 
-        void ProcessBuffer() {
-            while (true) {
+        // 返回已处理的字节数
+        size_t ProcessBuffer() {
+            if (parse_state_ == ParseState::ReadingArrayHeader) {
+                // 查找第一个 '\r\n'
                 size_t pos = buffer_.find("\r\n");
-                if (pos == std::string::npos)
-                    return;
+                if (pos == std::string::npos) return 0;
 
-                std::string line(buffer_.substr(0, pos));
+                std::string line = buffer_.substr(0, pos);
+                buffer_.erase(0, pos + 2);// 删除该行和 \r\n
+
+                HandleArrayHeader(line);
+                return pos + 2;
+            } else if (parse_state_ == ParseState::ReadingBulkHeader) {
+                size_t pos = buffer_.find("\r\n");
+                if (pos == std::string::npos) return 0;
+
+                std::string line = buffer_.substr(0, pos);
                 buffer_.erase(0, pos + 2);
 
-                ZEN_LOG_DEBUG("Parsing line: {}", line);
-
-                switch (parse_state_) {
-                    case ParseState::ReadingArrayHeader:
-                        HandleArrayHeader(line);
-                        break;
-                    case ParseState::ReadingBulkHeader:
-                        HandleBulkHeader(line);
-                        break;
-                    case ParseState::ReadingBulkContent:
-                        // Only invoked if we have all the content in buffer
-                        if (buffer_.size() >= static_cast<size_t>(current_bulk_size_ + 2)) {
-                            HandleBulkContent();
-                        }
-                        return;// wait for more content if not enough
+                HandleBulkHeader(line);
+                return pos + 2;
+            } else if (parse_state_ == ParseState::ReadingBulkContent) {
+                if (current_bulk_size_ < 0 || buffer_.size() < static_cast<size_t>(current_bulk_size_ + 2)) {
+                    return 0;// 数据未就绪
                 }
 
-                if (parse_state_ == ParseState::ReadingBulkContent &&
-                    buffer_.size() < static_cast<size_t>(current_bulk_size_ + 2)) {
-                    ReadBulkContent();
-                    return;
+                std::string content = buffer_.substr(0, current_bulk_size_);
+                buffer_.erase(0, current_bulk_size_ + 2);
+
+                argv_.push_back(content);
+                remaining_args_--;
+
+                if (remaining_args_ > 0) {
+                    parse_state_ = ParseState::ReadingBulkHeader;
+                } else {
+                    ProcessRequest();
+                    parse_state_ = ParseState::ReadingArrayHeader;
                 }
+
+                return current_bulk_size_ + 2;
             }
+
+            return 0;
         }
 
         void HandleArrayHeader(const std::string &line) {
@@ -117,8 +131,15 @@ namespace Astra::apps {
             }
 
             try {
-                remaining_args_ = std::stoi(line.substr(1));
+                int64_t arg_count = std::stoll(line.substr(1));
+                if (arg_count < 0) {
+                    throw std::invalid_argument("Negative argument count");
+                }
+
+                remaining_args_ = static_cast<int>(arg_count);
                 argv_.clear();
+                argv_.reserve(remaining_args_);
+
                 ZEN_LOG_DEBUG("Array header parsed: {} arguments", remaining_args_);
                 parse_state_ = ParseState::ReadingBulkHeader;
             } catch (...) {
@@ -133,9 +154,29 @@ namespace Astra::apps {
             }
 
             try {
-                current_bulk_size_ = std::stoi(line.substr(1));
+                int64_t bulk_size = std::stoll(line.substr(1));
+                if (bulk_size < -1) {// -1表示空值
+                    throw std::invalid_argument("Invalid bulk size");
+                }
+
+                current_bulk_size_ = static_cast<int>(bulk_size);
                 ZEN_LOG_DEBUG("Bulk string size: {}", current_bulk_size_);
+
                 parse_state_ = ParseState::ReadingBulkContent;
+
+                // 处理空值情况
+                if (current_bulk_size_ == -1) {
+                    argv_.push_back("");// 空字符串表示nil
+                    if (--remaining_args_ > 0) {
+                        parse_state_ = ParseState::ReadingBulkHeader;
+                    } else {
+                        ProcessRequest();
+                        parse_state_ = ParseState::ReadingArrayHeader;
+                    }
+                    return;
+                }
+
+                // 检查是否已有足够数据
                 if (buffer_.size() >= static_cast<size_t>(current_bulk_size_ + 2)) {
                     HandleBulkContent();
                 } else {
@@ -147,32 +188,64 @@ namespace Astra::apps {
         }
 
         void ReadBulkContent() {
-            auto self = shared_from_this();
-            size_t need = current_bulk_size_ + 2 - buffer_.size();
+            if (stopped_ || current_bulk_size_ < 0) return;
 
+            size_t required = static_cast<size_t>(current_bulk_size_ + 2);// +2 是为了\r\n
+            size_t have = buffer_.size();
+
+            if (have >= required) {
+                HandleBulkContent();
+                return;
+            }
+
+            size_t need = required - have;
             ZEN_LOG_DEBUG("Waiting for {} more bytes for bulk content", need);
 
+            // 使用strand确保读操作在单线程执行
             asio::async_read(socket_, asio::dynamic_buffer(buffer_),
                              asio::transfer_exactly(need),
-                             [this, self](std::error_code ec, size_t bytes_read) {
-                                 if (!ec) {
-                                     ZEN_LOG_DEBUG("Read bulk content: {} bytes", bytes_read);
-                                     HandleBulkContent();
-                                 } else {
-                                     ZEN_LOG_WARN("Error reading bulk content: {}", ec.message());
-                                 }
-                             });
+                             asio::bind_executor(strand_,
+                                                 [this, self = shared_from_this()](std::error_code ec, size_t bytes_read) {
+                                                     if (stopped_) return;
+
+                                                     if (!ec) {
+                                                         ZEN_LOG_DEBUG("Read bulk content: {} bytes", bytes_read);
+                                                         HandleBulkContent();
+                                                     } else {
+                                                         ZEN_LOG_WARN("Error reading bulk content: {}", ec.message());
+                                                         WriteResponse("-ERR Connection error\r\n");
+                                                         parse_state_ = ParseState::ReadingArrayHeader;
+                                                         DoRead();// 继续读取下一个命令
+                                                     }
+                                                 }));
         }
 
         void HandleBulkContent() {
+            if (stopped_ || current_bulk_size_ < 0) return;
+
+            // 确保有足够的数据
+            if (buffer_.size() < static_cast<size_t>(current_bulk_size_ + 2)) {
+                ZEN_LOG_ERROR("Insufficient data for bulk content");
+                WriteResponse("-ERR Internal server error\r\n");
+                parse_state_ = ParseState::ReadingArrayHeader;
+                return;
+            }
+
+            // 提取bulk内容（不包括最后的\r\n）
             std::string content = buffer_.substr(0, current_bulk_size_);
+            // 移除内容及\r\n
             buffer_.erase(0, current_bulk_size_ + 2);
+
             argv_.push_back(content);
             ZEN_LOG_DEBUG("Bulk content parsed: {}", content);
 
+            // 检查是否还有更多参数需要读取
             if (--remaining_args_ > 0) {
                 parse_state_ = ParseState::ReadingBulkHeader;
+                // 继续处理缓冲区中的数据
+                ProcessBuffer();
             } else {
+                // 所有参数都已读取，处理请求
                 ProcessRequest();
                 parse_state_ = ParseState::ReadingArrayHeader;
             }
@@ -183,38 +256,50 @@ namespace Astra::apps {
             for (const auto &arg: argv_) {
                 full_cmd += (full_cmd.empty() ? "" : " ") + arg;
             }
-            ZEN_LOG_INFO("Received command: {}", full_cmd);
+            ZEN_LOG_TRACE("Received command: {}", full_cmd);
 
-            auto res = task_queue_->Submit([this, self = shared_from_this()]() {
+            // 复制参数，避免跨线程访问
+            auto args_copy = argv_;
+            auto self = shared_from_this();
+
+            // 提交命令处理任务到线程池
+            (void) task_queue_->Submit([self, args_copy]() {
                 try {
-                    std::string response = handler_->ProcessCommand(argv_);
-                    asio::post(socket_.get_executor(), [this, self, response]() {
-                        WriteResponse(response);
+                    std::string response = self->handler_->ProcessCommand(args_copy);
+                    // 确保响应在strand中发送
+                    asio::post(self->strand_, [self, response]() {
+                        self->WriteResponse(response);
                     });
                 } catch (const std::exception &e) {
+                    std::string error_msg = "-ERR " + std::string(e.what()) + "\r\n";
+                    asio::post(self->strand_, [self, error_msg]() {
+                        self->WriteResponse(error_msg);
+                    });
                     ZEN_LOG_ERROR("Error processing request: {}", e.what());
                 }
             });
         }
 
         void WriteResponse(const std::string &response) {
-            auto self = shared_from_this();
-            task_queue_->Post([this, self, response]() {
-                // 使用异步写入
-                asio::async_write(socket_, asio::buffer(response),
-                                  [self, response](const asio::error_code &ec, std::size_t /*bytes_transferred*/) {
-                                      if (ec) {
-                                          ZEN_LOG_WARN("Failed to send response: {}", ec.message());
-                                          //self->Stop();// 可选：写入失败时关闭连接
-                                      } else {
-                                          ZEN_LOG_DEBUG("Sent response: {}", response);
-                                      }
-                                  });
-            });
+            if (stopped_) return;
+
+            // 使用strand确保写操作在单线程执行
+            asio::async_write(socket_, asio::buffer(response),
+                              asio::bind_executor(strand_,
+                                                  [this, self = shared_from_this(), response](const asio::error_code &ec, std::size_t) {
+                                                      if (ec) {
+                                                          ZEN_LOG_WARN("Failed to send response: {}", ec.message());
+                                                          Stop();
+                                                      } else {
+                                                          ZEN_LOG_DEBUG("Sent response: {}", response);
+                                                      }
+                                                  }));
         }
+
         std::shared_ptr<concurrent::TaskQueue> task_queue_;
-        bool stopped_ = false;// 控制状态机是否已关闭
+        bool stopped_ = false;
         asio::ip::tcp::socket socket_;
+        asio::strand<asio::any_io_executor> strand_;// 用于确保单线程执行
         std::string buffer_;
         std::shared_ptr<Astra::proto::RedisCommandHandler> handler_;
 
@@ -231,10 +316,9 @@ namespace Astra::apps {
             : context_(context),
               cache_(std::make_shared<AstraCache<LRUCache, std::string, std::string>>(cache_size)),
               acceptor_(context), persistence_db_name_(persistent_file) {
-            // 使用同一个 task_queue_
-            task_queue_ = std::make_shared<concurrent::TaskQueue>(
-                    std::thread::hardware_concurrency());
-            //cache_->StartEvictionTask(*task_queue_);
+            // 服务模式下使用单线程任务队列避免并发问题
+            const int thread_count = std::thread::hardware_concurrency() / 2;
+            task_queue_ = std::make_shared<concurrent::TaskQueue>(thread_count);
         }
 
         void Start(unsigned short port) {
@@ -245,82 +329,88 @@ namespace Astra::apps {
             acceptor_.listen();
             ZEN_LOG_INFO("Server listening on port {}", port);
 
-            //加载CACHE
-            ZEN_LOG_INFO("Loading cache from {}", persistence_db_name_);
             LoadCacheFromFile(persistence_db_name_);
 
-            // 每次 accept 使用新 socket
-            auto new_socket = std::make_shared<asio::ip::tcp::socket>(context_);
-            DoAccept(new_socket);
+            // 开始接受连接
+            DoAccept();
         }
 
         void Stop() {
-            // 关闭acceptor
+            // 关闭 acceptor
             asio::error_code ec;
             acceptor_.close(ec);
 
-            // 停止所有活跃Session
+            // 停止所有活跃会话
+            std::lock_guard<std::mutex> lock(sessions_mutex_);
             for (auto &session: active_sessions_) {
-                session->Stop();// 确保停止所有异步操作
+                session->Stop();
             }
             active_sessions_.clear();
-            //停止所有异步队列
+
+            // 停止任务队列
             task_queue_->Stop();
+
+            // 保存缓存
             SaveToFile(persistence_db_name_);
         }
 
         void SaveToFile(const std::string &filename) {
+            if (!enable_persistence_) return;
             Astra::Persistence::SaveCacheToFile(*cache_.get(), filename);
         }
 
         void LoadCacheFromFile(const std::string &filename) {
+            if (!enable_persistence_) return;
+            // 加载缓存
+            ZEN_LOG_INFO("Loading cache from {}", persistence_db_name_);
             Astra::Persistence::LoadCacheFromFile(*cache_.get(), filename);
         }
 
+        void setEnablePersistence(bool enable) {
+            enable_persistence_ = enable;
+        }
+
     private:
-        void DoAccept(std::shared_ptr<asio::ip::tcp::socket> socket) {
-            acceptor_.async_accept(*socket, [this, socket](std::error_code ec) {
-                if (ec) {
-                    if (ec == asio::error::operation_aborted) {
-                        ZEN_LOG_INFO("Acceptor stopped, exiting accept loop");
-                        return;// 不再继续监听新连接
-                    }
-                    ZEN_LOG_WARN("Accept error: {}", ec.message());
-                    // 其他错误继续监听
-                    auto new_socket = std::make_shared<asio::ip::tcp::socket>(context_);
-                    DoAccept(new_socket);
-                    return;
-                }
+        void DoAccept() {
+            // 创建新的socket并异步接受连接
+            acceptor_.async_accept(
+                    asio::make_strand(context_),// 使用strand确保accept在单线程执行
+                    [this](std::error_code ec, asio::ip::tcp::socket socket) {
+                        if (!ec) {
+                            ZEN_LOG_INFO("New client accepted from: {}",
+                                         socket.remote_endpoint().address().to_string());
 
-                // 处理新连接...
-                ZEN_LOG_INFO("New client accepted");
+                            // 创建会话并添加到活跃会话列表
+                            auto session = std::make_shared<Session>(
+                                    std::move(socket), cache_, task_queue_);
+                            {
+                                std::lock_guard<std::mutex> lock(sessions_mutex_);
+                                active_sessions_.push_back(session);
+                            }
 
-                // 创建 Session 并加入活跃列表
-                auto session = std::make_shared<Session>(
-                        std::move(*socket), cache_, task_queue_);
-                {
-                    std::lock_guard<std::mutex> lock(sessions_mutex_);
-                    active_sessions_.push_back(session);
-                }
+                            // 启动会话
+                            session->Start();
+                        } else if (ec != asio::error::operation_aborted) {
+                            ZEN_LOG_WARN("Accept error: {}", ec.message());
+                        }
 
-                task_queue_->Post([session]() {
-                    session->Start();
-                });
-
-                // 继续监听下一个连接
-                auto new_socket = std::make_shared<asio::ip::tcp::socket>(context_);
-                DoAccept(new_socket);
-            });
+                        // 继续接受下一个连接
+                        if (!acceptor_.is_open()) {
+                            ZEN_LOG_INFO("Acceptor closed, stopping accept loop");
+                            return;
+                        }
+                        DoAccept();
+                    });
         }
 
         std::string persistence_db_name_;
         asio::io_context &context_;
         asio::ip::tcp::acceptor acceptor_;
         std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache_;
-        //queue现在被全局共享，每个session共享这个queue
         std::shared_ptr<concurrent::TaskQueue> task_queue_;
         std::vector<std::shared_ptr<Session>> active_sessions_;
         std::mutex sessions_mutex_;
+        bool enable_persistence_ = false;
     };
 
 }// namespace Astra::apps

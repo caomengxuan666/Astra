@@ -210,6 +210,42 @@ RespValue_C *astra_client_get(AstraClient_C *client, const char *key) {
     }
 }
 
+RespValue_C *astra_client_mset(AstraClient_C *client, const MSetItem *items, int item_count) {
+    if (!client || !items || item_count <= 0) {
+        last_error = "Invalid arguments";
+        return nullptr;
+    }
+
+    try {
+        std::vector<std::pair<std::string, std::string>> keyValuePairs;
+        for (int i = 0; i < item_count; ++i) {
+            keyValuePairs.emplace_back(items[i].key, items[i].value);
+        }
+
+        auto result = new Astra::Client::RespValue(client->client->MSet(keyValuePairs));
+        return wrap_resp_value(result);
+    } catch (const std::exception &e) {
+        last_error = e.what();
+        return nullptr;
+    }
+}
+
+RespValue_C *astra_client_mget(AstraClient_C *client, const char **keys, int key_count) {
+    if (!client || !keys || key_count <= 0) {
+        last_error = "Invalid arguments";
+        return nullptr;
+    }
+
+    try {
+        std::vector<std::string> key_list = c_array_to_vector(keys, key_count);
+        auto result = new Astra::Client::RespValue(client->client->MGet(key_list));
+        return wrap_resp_value(result);
+    } catch (const std::exception &e) {
+        last_error = e.what();
+        return nullptr;
+    }
+}
+
 RespValue_C *astra_client_del(AstraClient_C *client, const char **keys,
                               int key_count) {
     if (!client || !keys || key_count <= 0) {

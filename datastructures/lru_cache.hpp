@@ -37,7 +37,7 @@ namespace Astra::datastructures {
             MoveToFront(it);
             // 修复参数错误：传递正确的迭代器而不是值
             UpdateHotKey(it->second, key);
-            return std::make_optional(std::move(it->second->second));
+            return std::make_optional(it->second->second);
         }
 
         void setCacheCapacity(size_t capacity) {

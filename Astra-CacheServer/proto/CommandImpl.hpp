@@ -103,6 +103,7 @@ namespace Astra::proto {
                     {"INCR", 2, {"write"}, 1, 1, 1, 0, "string", "Increment the integer value of a key by one", "1.0.0", "O(1)", {}, {}},
                     {"DECR", 2, {"write"}, 1, 1, 1, 0, "string", "Decrement the integer value of a key by one", "1.0.0", "O(1)", {}, {}},
                     {"EXISTS", 2, {"readonly"}, 1, 1, 1, 0, "keyspace", "Determine if a key exists", "1.0.0", "O(1)", {}, {}},
+                    {"MGET", -2, {"readonly", "fast"}, 1, -1, 1, 0, "string", "Get the values of multiple keys", "1.0.0", "O(N)", {}, {}},
                     {"COMMAND", 0, {"readonly", "admin"}, 0, 0, 0, 0, "server", "Get array of Redis command details", "2.8.13", "O(N)", {}, {}}};
 
             if (IsSubCommand(argv, "DOCS")) {
@@ -292,6 +293,64 @@ namespace Astra::proto {
 
             bool exists = cache_->Contains(key);
             return RespBuilder::Integer(exists ? 1 : 0);
+        }
+
+    private:
+        std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache_;
+    };
+
+    class MGetCommand : public ICommand {
+    public:
+        explicit MGetCommand(std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache)
+            : cache_(std::move(cache)) {}
+
+        std::string Execute(const std::vector<std::string> &argv) override {
+            // 校验参数：至少需要1个键（argv[0]是"MGET"，argv[1..n]是键）
+            if (argv.size() < 2) {
+                return RespBuilder::Error("ERR wrong number of arguments for 'MGET'");
+            }
+
+            // 批量获取每个键的值
+            std::vector<std::string> bulkValues;
+            for (size_t i = 1; i < argv.size(); ++i) {
+                const std::string &key = argv[i];
+                auto val = cache_->Get(key);
+                if (val) {
+                    // 存在的键：返回BulkString
+                    bulkValues.push_back(RespBuilder::BulkString(*val));
+                } else {
+                    // 不存在的键：返回Nil
+                    bulkValues.push_back(RespBuilder::Nil());
+                }
+            }
+
+            // 用数组包装所有值，返回RESP数组响应
+            return RespBuilder::Array(bulkValues);
+        }
+
+    private:
+        std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache_;
+    };
+
+    class MSetCommand : public ICommand {
+    public:
+        explicit MSetCommand(std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache)
+            : cache_(std::move(cache)) {}
+
+        std::string Execute(const std::vector<std::string> &argv) override {
+            // 校验参数：至少需要 1 对键值对（参数总数为奇数，argv [0] 是 "MSET"）
+            if (argv.size() < 3 || (argv.size() % 2) != 1) {
+                return RespBuilder::Error("ERR wrong number of arguments for 'MSET'");
+            }
+
+            // 批量设置键值对（i 从 1 开始，步长为 2：i 是键，i+1 是值）
+            for (size_t i = 1; i < argv.size(); i += 2) {
+                const std::string &key = argv[i];
+                const std::string &value = argv[i + 1];
+                cache_->Put(key, value);
+            }
+
+            return RespBuilder::SimpleString("OK");
         }
 
     private:

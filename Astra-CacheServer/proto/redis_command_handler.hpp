@@ -32,7 +32,8 @@ namespace Astra::proto {
             if (cmd == "INCR") return std::make_unique<IncrCommand>(cache_);
             if (cmd == "DECR") return std::make_unique<DecrCommand>(cache_);
             if (cmd == "EXISTS") return std::make_unique<ExistsCommand>(cache_);
-
+            if (cmd == "MGET") return std::make_unique<MGetCommand>(cache_);
+            if (cmd == "MSET") return std::make_unique<MSetCommand>(cache_);
             return nullptr;
         }
 

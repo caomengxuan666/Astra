@@ -7,8 +7,8 @@
 
 // 客户端窗口实现
 ClientWindow::ClientWindow(HINSTANCE hInstance,
-                         const wchar_t* className,
-                         const wchar_t* windowTitle)
+                           const wchar_t *className,
+                           const wchar_t *windowTitle)
     : m_hInstance(hInstance),
       m_className(className),
       m_windowTitle(windowTitle),
@@ -60,7 +60,7 @@ bool ClientWindow::RegisterWindowClass() {
     // 使用显式宽字符版本的IDC_ARROW
     wc.hCursor = LoadCursorW(NULL, IDC_ARROWW);
     // 添加背景画刷，解决透明问题
-    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW+1);
+    wc.hbrBackground = (HBRUSH) (COLOR_WINDOW + 1);
     // 使用标准的窗口样式，避免潜在的显示问题
     wc.style = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
 
@@ -74,12 +74,12 @@ void ClientWindow::Create() {
     }
 
     m_hWnd = CreateWindowExW(
-        0,
-        m_className.c_str(),
-        m_windowTitle.c_str(),
-        WS_OVERLAPPEDWINDOW | WS_CAPTION | WS_SYSMENU | WS_VISIBLE,
-        CW_USEDEFAULT, CW_USEDEFAULT, 800, 600,
-        NULL, NULL, m_hInstance, this);
+            0,
+            m_className.c_str(),
+            m_windowTitle.c_str(),
+            WS_OVERLAPPEDWINDOW | WS_CAPTION | WS_SYSMENU | WS_VISIBLE,
+            CW_USEDEFAULT, CW_USEDEFAULT, 800, 600,
+            NULL, NULL, m_hInstance, this);
 
     if (m_hWnd == NULL) {
         MessageBoxW(NULL, L"客户端窗口创建失败！", L"错误", MB_ICONEXCLAMATION | MB_OK);
@@ -95,7 +95,7 @@ void ClientWindow::Create() {
 
     // 额外确保窗口激活的代码
     SetWindowPos(m_hWnd, HWND_TOP, 0, 0, 0, 0,
-                SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
     SetForegroundWindow(m_hWnd);
     SetActiveWindow(m_hWnd);
 }

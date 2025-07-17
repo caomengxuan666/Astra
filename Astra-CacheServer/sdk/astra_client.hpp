@@ -47,6 +47,8 @@ namespace Astra::Client {
         RespValue Exists(const std::string &key);
         RespValue Incr(const std::string &key);
         RespValue Decr(const std::string &key);
+        RespValue MGet(const std::vector<std::string> &keys);
+        RespValue MSet(const std::vector<std::pair<std::string, std::string>> &keyValues);
 
     private:
         int sockfd_;

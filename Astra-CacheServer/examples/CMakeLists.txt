@@ -10,10 +10,22 @@ target_link_libraries(simple_example PRIVATE Astra-CacheSDK)
 target_include_directories(simple_example PRIVATE ../${CMAKE_CURRENT_SOURCE_DIR}/sdk)
 target_link_libraries(simple_example PRIVATE zenutils)
 
+
 # 如果是MSVC编译器
 if (MSVC)
     # 设置C示例的编译选项
     target_compile_options(simple_example PRIVATE
+            $<$<C_COMPILER_ID:MSVC>:/TC>  # 确保MSVC以C模式编译
+    )
+endif ()
+
+add_executable(labview_example labview_client_test.c)
+target_include_directories(labview_example PRIVATE ../${CMAKE_CURRENT_SOURCE_DIR}/sdk)
+target_link_libraries(labview_example PRIVATE Astra-CacheSDK)
+target_link_libraries(labview_example PRIVATE zenutils)
+if (MSVC)
+    # 设置C示例的编译选项
+    target_compile_options(labview_example PRIVATE
             $<$<C_COMPILER_ID:MSVC>:/TC>  # 确保MSVC以C模式编译
     )
 endif ()
@@ -27,6 +39,10 @@ add_executable(TrayPluginExample
 target_include_directories(TrayPluginExample PRIVATE
         ${CMAKE_SOURCE_DIR}/Astra-CacheServer/platform/windows
 )
+
+add_executable(example_client_perf example_client_perf.cpp)
+target_link_libraries(example_client_perf Astra-CacheSDK zenutils)
+target_include_directories(example_client_perf PRIVATE ../${CMAKE_CURRENT_SOURCE_DIR}/sdk)
 
 # 设置编译选项，指定使用宽字符入口wWinMain
 if (MSVC)
@@ -44,6 +60,6 @@ endif ()
 
 
 # 添加hiredis依赖
-#find_package(hiredis CONFIG REQUIRED)
-#add_executable(example_hiredis hiredis_client.cpp)
-#target_link_libraries(example_hiredis PRIVATE hiredis::hiredis zenutils)
+find_package(hiredis CONFIG REQUIRED)
+add_executable(example_hiredis hiredis_client.cpp)
+target_link_libraries(example_hiredis PRIVATE hiredis::hiredis zenutils)

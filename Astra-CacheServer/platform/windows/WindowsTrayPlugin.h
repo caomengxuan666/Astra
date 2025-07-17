@@ -1,21 +1,21 @@
 #pragma once
-#include <windows.h>
+#include "ClientWindow.h"
+#include <memory>
 #include <shellapi.h>
 #include <string>
-#include "ClientWindow.h"
-#include<memory>
+#include <windows.h>
 
 #define ID_ABOUT 101
 #define ID_EXIT 102
-#define ID_OPEN_CLIENT 1003 // 客户端菜单ID
+#define ID_OPEN_CLIENT 1003// 客户端菜单ID
 
 class WindowsTrayPlugin {
 public:
     // 构造函数
     WindowsTrayPlugin(HINSTANCE hInstance,
-                     const wchar_t* className,
-                     const wchar_t* windowTitle,
-                     const wchar_t* tooltip);
+                      const wchar_t *className,
+                      const wchar_t *windowTitle,
+                      const wchar_t *tooltip);
 
     // 析构函数
     ~WindowsTrayPlugin();
@@ -27,7 +27,7 @@ public:
     void SetIcon(HICON hIcon);
 
     // 设置提示文本
-    void SetTooltip(const wchar_t* tooltip);
+    void SetTooltip(const wchar_t *tooltip);
 
     HICON CreateCustomIcon();
 
@@ -38,7 +38,7 @@ private:
     // 成员变量
     HINSTANCE m_hInstance;
     HWND m_hWnd;
-    NOTIFYICONDATAW m_nid;  // 使用NOTIFYICONDATAW结构体类型
+    NOTIFYICONDATAW m_nid;// 使用NOTIFYICONDATAW结构体类型
     std::wstring m_className;
     std::wstring m_windowTitle;
     std::wstring m_tooltip;

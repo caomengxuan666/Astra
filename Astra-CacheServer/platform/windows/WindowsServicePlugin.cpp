@@ -5,7 +5,6 @@
 #include "persistence/util_path.hpp"
 #include "server/server.hpp"
 #include "utils/logger.hpp"
-#include "windows.h"
 #include <asio/io_context.hpp>
 #include <asio/signal_set.hpp>
 #include <cstdlib>
@@ -134,17 +133,12 @@ void StartServerInServiceMode(int argc, char *argv[]) {
                 io_context,
                 args::get(maxSize),
                 args::get(dumpFile));
+        g_server->setEnablePersistence(false);
 
         g_server->Start(args::get(port));
         ZEN_LOG_INFO("服务已启动，监听端口: {}", args::get(port));
 
-        // 信号处理
-        asio::signal_set signals(io_context, SIGINT, SIGTERM);
-        signals.async_wait([server_weak = std::weak_ptr(g_server)](auto, auto) {
-            if (auto server = server_weak.lock()) server->Stop();
-        });
-
-        io_context.run();
+        //io_context.run();
     } catch (const std::exception &e) {
         ZEN_LOG_ERROR("服务启动失败: {}", e.what());
         throw;

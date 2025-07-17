@@ -1,13 +1,13 @@
 #include "core/astra.hpp"
 #include "utils/logger.hpp"
-#include <gtest/gtest.h>
-#include <fstream>
-#include <filesystem>
-#include <thread>
 #include <chrono>
+#include <filesystem>
+#include <fstream>
+#include <gtest/gtest.h>
+#include <process.h>// 用于获取PID
 #include <sstream>
+#include <thread>
 #include <vector>
-#include <process.h>  // 用于获取PID
 
 namespace fs = std::filesystem;
 using namespace std::chrono_literals;
@@ -16,13 +16,13 @@ using namespace std::chrono_literals;
 class BaseLoggerTest : public testing::Test {
 protected:
     // 生成唯一测试目录
-    std::string createTestDir(const std::string& type) {
+    std::string createTestDir(const std::string &type) {
         std::string testName = ::testing::UnitTest::GetInstance()->current_test_info()->name();
         return type + "_test_logs_" + testName + "_" + std::to_string(_getpid());
     }
 
     // 安全删除目录（处理Windows文件占用问题）
-    void safeRemoveDir(const std::string& dir) {
+    void safeRemoveDir(const std::string &dir) {
         for (int i = 0; i < 20; ++i) {
             try {
                 fs::remove_all(dir);
@@ -37,12 +37,12 @@ protected:
 // 异步日志测试类
 class AsyncLoggerTest : public BaseLoggerTest {
 protected:
-    std::string testLogDir;                  // 测试日志目录
-    std::shared_ptr<Astra::FileAppender> fileAppender;  // 异步文件输出器
+    std::string testLogDir;                           // 测试日志目录
+    std::shared_ptr<Astra::FileAppender> fileAppender;// 异步文件输出器
 
     void SetUp() override {
         testLogDir = createTestDir("async");
-        fs::remove_all(testLogDir);  // 清理历史残留
+        fs::remove_all(testLogDir);// 清理历史残留
     }
 
     void TearDown() override {
@@ -57,19 +57,19 @@ protected:
 
     // 等待异步日志写入完成
     void waitForLogWrite() {
-        std::this_thread::sleep_for(3s);  // 等待异步线程处理
+        std::this_thread::sleep_for(3s);// 等待异步线程处理
     }
 };
 
 // 同步日志测试类
 class SyncLoggerTest : public BaseLoggerTest {
 protected:
-    std::string testLogDir;                      // 测试日志目录
-    std::shared_ptr<Astra::SyncFileAppender> syncFileAppender;  // 同步文件输出器
+    std::string testLogDir;                                   // 测试日志目录
+    std::shared_ptr<Astra::SyncFileAppender> syncFileAppender;// 同步文件输出器
 
     void SetUp() override {
         testLogDir = createTestDir("sync");
-        fs::remove_all(testLogDir);  // 清理历史残留
+        fs::remove_all(testLogDir);// 清理历史残留
     }
 
     void TearDown() override {
@@ -98,7 +98,7 @@ TEST_F(AsyncLoggerTest, FileCreationAndContent) {
     // 写入测试日志
     std::string testMsg = "Async file creation test message";
     ZEN_LOG_INFO("{}", testMsg);
-    waitForLogWrite();  // 等待异步写入
+    waitForLogWrite();// 等待异步写入
 
     // 验证文件存在
     std::string logFileName = fileAppender->GetCurrentLogFileName();
@@ -130,10 +130,10 @@ TEST_F(AsyncLoggerTest, ConcurrentWrites) {
     }
 
     // 等待所有线程完成
-    for (auto& th : threads) {
+    for (auto &th: threads) {
         th.join();
     }
-    waitForLogWrite();  // 等待异步写入
+    waitForLogWrite();// 等待异步写入
 
     // 验证总日志条数（允许±10的误差，因批量写入可能合并）
     std::string logFile = fileAppender->GetCurrentLogFileName();
@@ -153,7 +153,7 @@ TEST_F(AsyncLoggerTest, ConcurrentWrites) {
 TEST_F(AsyncLoggerTest, LevelFiltering) {
     fileAppender = std::make_shared<Astra::FileAppender>(testLogDir);
     Astra::Logger::GetInstance().AddAppender(fileAppender);
-    Astra::Logger::GetInstance().SetLevel(Astra::LogLevel::WARN);  // 只输出WARN及以上
+    Astra::Logger::GetInstance().SetLevel(Astra::LogLevel::WARN);// 只输出WARN及以上
 
     // 写入不同级别的日志
     ZEN_LOG_TRACE("Async TRACE should be filtered");
@@ -187,7 +187,7 @@ TEST_F(SyncLoggerTest, FileCreationAndContent) {
     // 写入测试日志（同步写入，立即生效）
     std::string testMsg = "Sync file creation test message";
     ZEN_LOG_INFO("{}", testMsg);
-    syncLogWrite();  // 强制刷新
+    syncLogWrite();// 强制刷新
 
     // 验证文件存在
     std::string logFileName = syncFileAppender->GetCurrentLogFileName();
@@ -219,10 +219,10 @@ TEST_F(SyncLoggerTest, ConcurrentWrites) {
     }
 
     // 等待所有线程完成
-    for (auto& th : threads) {
+    for (auto &th: threads) {
         th.join();
     }
-    syncLogWrite();  // 强制刷新
+    syncLogWrite();// 强制刷新
 
     // 验证总日志条数（同步写入应无丢失）
     std::string logFile = syncFileAppender->GetCurrentLogFileName();
@@ -234,14 +234,14 @@ TEST_F(SyncLoggerTest, ConcurrentWrites) {
     }
 
     EXPECT_EQ(totalLines, threadCount * logsPerThread)
-        << "同步日志并发写入丢失，实际: " << totalLines
-        << "，预期: " << threadCount * logsPerThread;
+            << "同步日志并发写入丢失，实际: " << totalLines
+            << "，预期: " << threadCount * logsPerThread;
 }
 
 TEST_F(SyncLoggerTest, LevelFiltering) {
     syncFileAppender = std::make_shared<Astra::SyncFileAppender>(testLogDir);
     Astra::Logger::GetInstance().AddAppender(syncFileAppender);
-    Astra::Logger::GetInstance().SetLevel(Astra::LogLevel::WARN);  // 只输出WARN及以上
+    Astra::Logger::GetInstance().SetLevel(Astra::LogLevel::WARN);// 只输出WARN及以上
 
     // 写入不同级别的日志（同步写入）
     ZEN_LOG_TRACE("Sync TRACE should be filtered");
@@ -250,7 +250,7 @@ TEST_F(SyncLoggerTest, LevelFiltering) {
     ZEN_LOG_WARN("Sync WARN should be kept");
     ZEN_LOG_ERROR("Sync ERROR should be kept");
     ZEN_LOG_FATAL("Sync FATAL should be kept");
-    syncLogWrite();  // 强制刷新
+    syncLogWrite();// 强制刷新
 
     // 验证日志内容
     std::string logFile = syncFileAppender->GetCurrentLogFileName();

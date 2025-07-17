@@ -229,4 +229,12 @@ namespace Astra::Client {
         return std::move(SendCommand(DecrCommand(key)));
     }
 
+    RespValue AstraClient::MGet(const std::vector<std::string> &keys) {
+        return std::move(SendCommand(MGetCommand(keys)));
+    }
+
+    RespValue AstraClient::MSet(const std::vector<std::pair<std::string, std::string>> &keyValues) {
+        return std::move(SendCommand(MSetCommand(keyValues)));
+    }
+
 }// namespace Astra::Client

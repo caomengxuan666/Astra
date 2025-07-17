@@ -1,7 +1,7 @@
 #include "sdk/astra_client_c.h"
 #include <stdio.h>
 #include <string.h>
-#include "core/macros.hpp"
+
 // 打印响应值详情（辅助函数）
 void print_resp_details(const RespValue_C* resp) {
     if (!resp) {
@@ -178,7 +178,41 @@ int main() {
     astra_resp_value_destroy(del_resp);
     printf("\n");
 
-    // 12. 清理资源
+    // 12. 测试MSET命令（批量设置键值对）
+    printf("=== Testing MSET ===\n");
+    MSetItem mset_items[] = {
+        {"mkey1", "value1"},
+        {"mkey2", "value2"},
+        {"mkey3", "value3"}
+    };
+    int mset_item_count = sizeof(mset_items) / sizeof(mset_items[0]);
+    
+    RespValue_C* mset_resp = astra_client_mset(client, mset_items, mset_item_count);
+    if (!mset_resp) {
+        printf("MSET failed: %s\n", astra_client_last_error());
+        astra_client_destroy(client);
+        return 1;
+    }
+    print_resp_details(mset_resp);
+    astra_resp_value_destroy(mset_resp);
+    printf("\n");
+
+    // 13. 测试MGET命令（批量获取键值对）
+    printf("=== Testing MGET ===\n");
+    const char* mget_keys[] = {"mkey1", "mkey2", "mkey3"};
+    int mget_key_count = sizeof(mget_keys) / sizeof(mget_keys[0]);
+    
+    RespValue_C* mget_resp = astra_client_mget(client, mget_keys, mget_key_count);
+    if (!mget_resp) {
+        printf("MGET failed: %s\n", astra_client_last_error());
+        astra_client_destroy(client);
+        return 1;
+    }
+    print_resp_details(mget_resp);
+    astra_resp_value_destroy(mget_resp);
+    printf("\n");
+
+    // 14. 清理资源
     astra_client_destroy(client);
     printf("Client destroyed successfully\n");
 

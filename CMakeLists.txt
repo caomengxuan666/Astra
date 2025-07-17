@@ -41,6 +41,8 @@ if(WIN32)
 endif()
 endif()
 
+include(cmake/FindVcpkg.cmake)
+setup_vcpkg()
 
 # 添加子模块
 add_subdirectory(core)
@@ -59,3 +61,4 @@ add_subdirectory(Astra-CacheServer)
 # 测试
 enable_testing()
 add_subdirectory(tests)
+add_subdirectory(benchmark)

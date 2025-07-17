@@ -1,15 +1,15 @@
 
 // 客户端窗口类声明
 #pragma once
-#include <windows.h>
 #include <string>
+#include <windows.h>
 
 class ClientWindow {
 public:
     // 构造函数
     ClientWindow(HINSTANCE hInstance,
-                const wchar_t* className,
-                const wchar_t* windowTitle);
+                 const wchar_t *className,
+                 const wchar_t *windowTitle);
 
     // 析构函数
     ~ClientWindow();
@@ -31,7 +31,7 @@ private:
 
     // 窗口过程
     static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-    
+
     // 处理窗口消息
     LRESULT HandleMessage(UINT msg, WPARAM wParam, LPARAM lParam);
 

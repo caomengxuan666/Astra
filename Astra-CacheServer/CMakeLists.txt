@@ -33,12 +33,26 @@ add_library(Astra-CacheSDK SHARED
         persistence/util_path.cpp 
         sdk/astra_client_c.cpp
         persistence/process.cpp
+        sdk/astra_client_labview.h
+        sdk/astra_client_labview.cpp
 )
 
 target_compile_definitions(Astra-CacheSDK PRIVATE ZEN_DLL_EXPORT)
 target_link_libraries(Astra-CacheSDK PRIVATE zenutils)
 
 add_subdirectory(examples)
+
+# install 安装Astra-CacheSDK的头文件和库文件
+install(TARGETS Astra-CacheSDK
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+        INCLUDES DESTINATION include
+        CONFIGURATIONS Release
+)
+
+install(FILES sdk/astra_client_c.h sdk/astra_client_labview.h sdk/astra_resp.h DESTINATION include)
+install(FILES ../core/macros.hpp DESTINATION include/core)
 
 # install 写入
 install(TARGETS Astra-CacheServer RUNTIME DESTINATION bin)

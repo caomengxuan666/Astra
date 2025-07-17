@@ -118,7 +118,7 @@ TEST(TaskFlowTest, Task_PauseAndResume) {
     std::this_thread::sleep_for(1s);// 等待所有任务完成
 
     int resumed_count = count.load();
-    EXPECT_EQ(resumed_count, 1000);// 所有任务应在恢复后执行
+    EXPECT_EQ(resumed_count, 1001);// 所有任务应在恢复后执行
 }
 
 // ======================

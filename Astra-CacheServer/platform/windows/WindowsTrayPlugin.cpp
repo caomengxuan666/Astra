@@ -19,7 +19,7 @@ bool WindowsTrayPlugin::RegisterClientWindowClass() {
     // 修正：使用IDC_ARROWW宏代替原来的IDC_ARROW
     wc.hCursor = LoadCursorW(NULL, IDC_ARROWW);
     // 添加背景画刷，解决透明问题
-    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW+1);
+    wc.hbrBackground = (HBRUSH) (COLOR_WINDOW + 1);
     // 添加窗口样式，确保边框正常显示
     wc.style = CS_HREDRAW | CS_VREDRAW;
     // 使用标准的窗口样式，避免潜在的显示问题
@@ -40,12 +40,12 @@ void WindowsTrayPlugin::ShowClientWindow() {
         }
 
         m_clientHWnd = CreateWindowExW(
-            0,
-            m_clientClassName.c_str(),
-            m_clientWindowTitle.c_str(),
-            WS_OVERLAPPEDWINDOW | WS_CAPTION | WS_SYSMENU | WS_VISIBLE, // 添加WS_VISIBLE样式
-            CW_USEDEFAULT, CW_USEDEFAULT, 800, 600,
-            NULL, NULL, m_hInstance, this);
+                0,
+                m_clientClassName.c_str(),
+                m_clientWindowTitle.c_str(),
+                WS_OVERLAPPEDWINDOW | WS_CAPTION | WS_SYSMENU | WS_VISIBLE,// 添加WS_VISIBLE样式
+                CW_USEDEFAULT, CW_USEDEFAULT, 800, 600,
+                NULL, NULL, m_hInstance, this);
 
         if (m_clientHWnd == NULL) {
             MessageBoxW(NULL, L"客户端窗口创建失败！", L"错误", MB_ICONEXCLAMATION | MB_OK);
@@ -61,7 +61,7 @@ void WindowsTrayPlugin::ShowClientWindow() {
 
         // 额外确保窗口激活的代码
         SetWindowPos(m_clientHWnd, HWND_TOP, 0, 0, 0, 0,
-                    SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
         SetForegroundWindow(m_clientHWnd);
         SetActiveWindow(m_clientHWnd);
     } else {
@@ -113,7 +113,7 @@ LRESULT WindowsTrayPlugin::HandleClientMessage(UINT msg, WPARAM wParam, LPARAM l
             return 0;
 
         case WM_DESTROY:
-            m_clientHWnd = nullptr;  // 窗口销毁时清空句柄
+            m_clientHWnd = nullptr;// 窗口销毁时清空句柄
             return 0;
 
         default:
