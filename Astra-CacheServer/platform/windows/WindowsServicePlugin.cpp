@@ -28,6 +28,8 @@ static std::shared_ptr<Astra::apps::AstraCacheServer> g_server;
 static SERVICE_STATUS g_serviceStatus;
 static SERVICE_STATUS_HANDLE g_serviceStatusHandle;
 
+static constexpr size_t MAXLRUSIZE = std::numeric_limits<size_t>::max();
+
 // 日志级别解析函数
 inline static Astra::LogLevel parseLogLevel(const std::string &levelStr) {
     static const std::unordered_map<std::string, Astra::LogLevel> levels = {
@@ -120,11 +122,20 @@ void StartServerInServiceMode(int argc, char *argv[]) {
     args::ValueFlag<int> port(parser, "port", "监听端口", {'p', "port"}, 6380);
     args::ValueFlag<std::string> logLevelStr(parser, "level", "日志级别", {'l', "loglevel"}, "info");
     args::ValueFlag<std::string> dumpFile(parser, "filename", "持久化文件", {'d', "dumpfile"}, (homeDir / ".astra" / "cache_dump.rdb").string());
-    args::ValueFlag<size_t> maxSize(parser, "size", "最大缓存大小", {'m', "maxsize"}, 100000);
+    args::ValueFlag<size_t> maxSize(parser, "size", "最大缓存大小", {'m', "maxsize"}, MAXLRUSIZE);
+    args::ValueFlag<bool> enableLoggingFileFlag(parser, "enable", "启用文件日志", {'f', "file"}, false);
+
 
     try {
         parser.ParseCLI(filteredArgc, filteredArgs.data());
 
+        bool enableLoggingFile = args::get(enableLoggingFileFlag);
+        // 设置日志文件输出
+        if (enableLoggingFile) {
+            auto &logger = Astra::Logger::GetInstance();
+            auto fileAppender = std::make_shared<Astra::SyncFileAppender>(logger.GetDefaultLogDir());
+            logger.AddAppender(fileAppender);
+        }
         // 初始化服务器
         auto pool = AsioIOServicePool::GetInstance();
         asio::io_context &io_context = pool->GetIOService();

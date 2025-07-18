@@ -25,7 +25,7 @@ add_executable(Astra-CacheServer ${SERVER_SOURCE} ${WIN_SOURCE})
 else()
 add_executable(Astra-CacheServer ${SERVER_SOURCE})
 endif()
-
+target_compile_definitions(Astra-CacheServer PRIVATE FMT_DISABLE_UTF8=1)
 target_link_libraries(Astra-CacheServer zenutils)
 
 add_library(Astra-CacheSDK SHARED

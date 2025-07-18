@@ -45,6 +45,14 @@ int main() {
         auto decr_val = client.Decr("counter");
         std::cout << "counter after decr: " << decr_val.integer << std::endl;
 
+        //测试 MGET/MSET
+        client.MSet({{"user:1000", "Alice"}, {"user:1001", "Bob"}});
+        auto mget_result = client.MGet({"user:1000", "user:1001", "user:1002"});
+        std::cout << "MGET results:" << std::endl;
+        for (const auto &item : mget_result.array) {
+            std::cout << item.str << std::endl;
+        }
+
 
         // 测试 KEYS *
         client.Set("user:1000", "Alice");

@@ -89,6 +89,7 @@
 #define ZEN_DEBUG
 #include "utils/logger.hpp"
 #include "utils/scope_guard.hpp"
+#include "utils/utf8_encode.h"
 
 
 // Project datastructures headers

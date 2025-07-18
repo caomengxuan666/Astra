@@ -1,4 +1,6 @@
 #include "logger.hpp"
+#include "utf8_encode.h"
+#include <chrono>
 #include <ctime>
 #include <filesystem>
 #include <fmt/color.h>
@@ -118,50 +120,70 @@ namespace Astra {
         }
     }
 
-    void FileAppender::rollLogFileIfNeeded() {
-        if (current_file_size_ >= config_.max_file_size) {
-            {
-                std::lock_guard<std::mutex> lock(file_mutex_);
-                if (file_.is_open()) {
-                    file_.flush();
-                    file_.close();
-                }
-            }
-
-            current_file_index_++;
-            if (current_file_index_ > static_cast<int>(config_.max_backup_files)) {
-                std::string old_file = generateLogFileName(1);
-                if (fs::exists(old_file)) {
-                    fs::remove(old_file);
-                }
-                current_file_index_ = config_.max_backup_files;
-            }
-
-            for (int i = static_cast<int>(config_.max_backup_files); i > 1; --i) {
-                std::string src = generateLogFileName(i);
-                if (fs::exists(src)) {
-                    std::string dest = generateLogFileName(i - 1);
-                    fs::rename(src, dest);
-                }
-            }
-
-            std::string old_name = current_file_name_;
-            {
-                std::lock_guard<std::mutex> lock(file_name_mutex_);
-                current_file_name_ = generateLogFileName();
-            }
-
-            if (fs::exists(old_name)) {
-                fs::rename(old_name, generateLogFileName(current_file_index_));
-            }
-
-            current_file_size_ = 0;
-            file_.open(current_file_name_, std::ios::app | std::ios::binary);
-            if (!file_.is_open()) {
-                ZEN_LOG_ERROR("Failed to reopen log file: {}", current_file_name_);
+void FileAppender::rollLogFileIfNeeded() {
+    if (current_file_size_ >= config_.max_file_size) {
+        // 关闭当前文件
+        {
+            std::lock_guard<std::mutex> lock(file_mutex_);
+            if (file_.is_open()) {
+                file_.flush();
+                file_.close();
             }
         }
+
+        // 生成新文件名
+        current_file_index_++;
+        std::string old_name = current_file_name_;
+        std::string new_name = generateLogFileName(current_file_index_);
+
+        // 如果达到最大备份数，清理旧文件
+        if (current_file_index_ > static_cast<int>(config_.max_backup_files)) {
+            std::string oldest = generateLogFileName(1);
+            if (fs::exists(oldest)) {
+                fs::remove(oldest);
+            }
+            current_file_index_ = config_.max_backup_files;
+            new_name = generateLogFileName(current_file_index_);
+        }
+
+        // 从后往前重命名旧日志文件
+        for (int i = static_cast<int>(config_.max_backup_files); i > 1; --i) {
+            std::string src = generateLogFileName(i - 1);
+            std::string dst = generateLogFileName(i);
+            if (fs::exists(src)) {
+                if (fs::exists(dst)) {
+                    fs::remove(dst);  // 删除目标文件（如果存在）
+                }
+                fs::rename(src, dst);  // 移动文件
+            }
+        }
+
+        // 重命名当前日志文件为 1.log
+        {
+            std::lock_guard<std::mutex> lock(file_name_mutex_);
+            std::string dst = generateLogFileName(1);
+            if (fs::exists(dst)) {
+                fs::remove(dst);  // 删除已存在的备份
+            }
+            if (fs::exists(old_name)) {
+                try {
+                    fs::rename(old_name, dst);
+                } catch (const fs::filesystem_error &e) {
+                    ZEN_LOG_ERROR("Failed to rename log file: {}", e.what());
+                }
+            }
+        }
+
+        // 重新打开日志文件
+        current_file_name_ = generateLogFileName();
+        file_.open(current_file_name_, std::ios::app | std::ios::binary);
+        if (!file_.is_open()) {
+            ZEN_LOG_ERROR("Failed to reopen log file: {}", current_file_name_);
+        } else {
+            current_file_size_ = 0;
+        }
     }
+}
 
     std::string FileAppender::generateLogFileName(int index) const {
         std::stringstream ss;
@@ -358,7 +380,7 @@ namespace Astra {
     std::string Astra::Logger::cached_timestamp_;
     std::mutex Astra::Logger::timestamp_mutex_;
 
-    Logger::Logger() : level_(LogLevel::INFO) {
+    Logger::Logger() : level_(LogLevel::INFO), running_(true) {
         const char *home_env = getenv("USERPROFILE");
         if (!home_env) {
             home_env = getenv("HOME");
@@ -373,9 +395,6 @@ namespace Astra {
 
         auto async_console_appender = std::make_shared<AsyncConsoleAppender>();
         appenders_.push_back(async_console_appender);
-
-        auto file_appender = std::make_shared<FileAppender>(default_log_dir_);
-        AddAppender(file_appender);
     }
 
     Logger::~Logger() {
@@ -479,13 +498,21 @@ namespace Astra {
 
     void Logger::startTimestampUpdater() {
         timestamp_update_thread_ = std::thread([this]() {
+            // 去掉初始延迟，改用自旋等待（适用于对启动速度敏感的场景）
+            while (!running_) {
+                std::this_thread::yield();// 让出CPU，等待running_被设置
+            }
+
+            // 时间戳生成逻辑不变，但延长更新间隔（如1秒，根据业务需求调整）
             while (running_) {
-                std::string new_ts = generateTimestamp();
-                {
+                try {
+                    std::string new_ts = generateTimestamp();
                     std::lock_guard<std::mutex> lock(timestamp_mutex_);
                     cached_timestamp_ = new_ts;
+                } catch (...) {
+                    // 异常处理
                 }
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));// 延长休眠时间
             }
         });
     }
@@ -574,12 +601,33 @@ namespace Astra {
                         fmt::print(entry_style, "");
                         current_style = entry_style;
                     }
+#ifdef _WIN32
+                    //只有Windows平台才需要处理UTF-8编码问题
+
+                    // 确保时间戳是合法 UTF-8（通常没问题）
+                    std::string safe_timestamp = is_valid_utf8(entry.timestamp) ? entry.timestamp : EnsureUTF8(entry.timestamp);
+
+                    // 日志级别是静态字符串，通常没问题
+                    std::string level_str = Logger::LevelToString(entry.level);
+                    std::string safe_level = is_valid_utf8(level_str) ? level_str : EnsureUTF8(level_str);
+
+                    // 消息内容最可能出问题，确保转换
+                    std::string safe_message = EnsureUTF8(entry.message);
+
 
                     fmt::print(entry_style,
                                "[{}] [{}] {}\n",
+                               safe_timestamp,
+                               safe_level,
+                               safe_message);
+
+                    #elif
+                    // 其他平台都不用管
+                    fmt::print("[{}] [{}] {}\n",
                                entry.timestamp,
                                Logger::LevelToString(entry.level),
                                entry.message);
+#endif
                 }
 
                 if (current_style != fmt::text_style{}) {

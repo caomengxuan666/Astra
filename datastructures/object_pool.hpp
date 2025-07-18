@@ -114,7 +114,7 @@ public:
         is_destructed_.store(true, std::memory_order_release);
     }
 
-    std::shared_ptr<T> GetObject() noexcept {
+    std::shared_ptr<T> RetrieveObject() noexcept {
         std::lock_guard<std::mutex> lock(mutex_);
 
         if (!obj_list_.empty()) {
@@ -130,7 +130,7 @@ public:
         return nullptr;
     }
 
-    std::vector<std::shared_ptr<T>> GetObjects(size_t n) noexcept {
+    std::vector<std::shared_ptr<T>> RetrieveObject(size_t n) noexcept {
         std::vector<std::shared_ptr<T>> result;
         if (n == 0) return result;
 

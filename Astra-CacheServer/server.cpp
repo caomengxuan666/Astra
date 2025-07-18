@@ -4,6 +4,8 @@ int main(int argc, char *argv[]) {
 
     // ********** 优先处理服务控制命令（重构后）**********
 #ifdef _WIN32
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
     // 先判断是否是服务控制命令（install/start/stop等）
     if (argc >= 2) {
         // 尝试处理服务控制命令

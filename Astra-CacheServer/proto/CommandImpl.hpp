@@ -305,50 +305,86 @@ namespace Astra::proto {
             : cache_(std::move(cache)) {}
 
         std::string Execute(const std::vector<std::string> &argv) override {
-            // 校验参数：至少需要1个键（argv[0]是"MGET"，argv[1..n]是键）
+            // 1. 校验参数格式
             if (argv.size() < 2) {
-                return RespBuilder::Error("ERR wrong number of arguments for 'MGET'");
+                ZEN_LOG_WARN("MGET invalid arguments: expected at least 1 key, got {}", argv.size() - 1);
+                return RespBuilder::Error("ERR wrong number of arguments for 'MGET' command");
             }
 
-            // 批量获取每个键的值
-            std::vector<std::string> bulkValues;
+            // 2. 提取输入键并记录数量
+            const size_t key_count = argv.size() - 1;
+            std::vector<std::string> keys;
+            keys.reserve(key_count);
             for (size_t i = 1; i < argv.size(); ++i) {
-                const std::string &key = argv[i];
-                auto val = cache_->Get(key);
-                if (val) {
-                    // 存在的键：返回BulkString
-                    bulkValues.push_back(RespBuilder::BulkString(*val));
+                keys.push_back(argv[i]);
+            }
+            ZEN_LOG_DEBUG("MGET processing {} keys", key_count);
+
+            // 3. 调用批量获取接口
+            auto results = cache_->BatchGet(keys);
+
+            // 4. 严格校验结果数量（核心修复点）
+            if (results.size() != key_count) {
+                ZEN_LOG_ERROR("MGET result count mismatch: expected {} results, got {}", key_count, results.size());
+                return RespBuilder::Error("ERR MGET internal error: result count mismatch");
+            }
+
+            // 5. 构建响应元素（确保每个键对应一个结果）
+            std::vector<std::string> bulk_values;
+            bulk_values.reserve(key_count);// 预分配固定大小，避免扩容异常
+            for (size_t i = 0; i < key_count; ++i) {
+                const auto &val_opt = results[i];
+                if (val_opt.has_value()) {
+                    // 存在值：生成BulkString
+                    bulk_values.push_back(RespBuilder::BulkString(val_opt.value()));
                 } else {
-                    // 不存在的键：返回Nil
-                    bulkValues.push_back(RespBuilder::Nil());
+                    // 不存在值：生成Nil
+                    bulk_values.push_back(RespBuilder::Nil());
                 }
             }
 
-            // 用数组包装所有值，返回RESP数组响应
-            return RespBuilder::Array(bulkValues);
+            // 6. 再次校验响应元素数量（双重保险）
+            if (bulk_values.size() != key_count) {
+                ZEN_LOG_ERROR("MGET response build mismatch: expected {} elements, built {}", key_count, bulk_values.size());
+                return RespBuilder::Error("ERR MGET internal error: response build failed");
+            }
+
+            // 7. 生成最终数组响应
+            std::string response = RespBuilder::Array(bulk_values);
+            ZEN_LOG_DEBUG("MGET generated response (size: {} bytes) for {} keys", response.size(), key_count);
+            return response;
         }
 
     private:
         std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache_;
     };
 
+    // 修改后的MSetCommand
     class MSetCommand : public ICommand {
     public:
         explicit MSetCommand(std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache)
             : cache_(std::move(cache)) {}
 
         std::string Execute(const std::vector<std::string> &argv) override {
-            // 校验参数：至少需要 1 对键值对（参数总数为奇数，argv [0] 是 "MSET"）
+            // 校验参数：至少需要 1 对键值对（参数总数为奇数，argv[0]是"MSET"）
             if (argv.size() < 3 || (argv.size() % 2) != 1) {
                 return RespBuilder::Error("ERR wrong number of arguments for 'MSET'");
             }
 
-            // 批量设置键值对（i 从 1 开始，步长为 2：i 是键，i+1 是值）
+            // 提取键和值到两个向量（预分配空间提升性能）
+            size_t pair_count = (argv.size() - 1) / 2;
+            std::vector<std::string> keys;
+            std::vector<std::string> values;
+            keys.reserve(pair_count);
+            values.reserve(pair_count);
+
             for (size_t i = 1; i < argv.size(); i += 2) {
-                const std::string &key = argv[i];
-                const std::string &value = argv[i + 1];
-                cache_->Put(key, value);
+                keys.push_back(argv[i]);
+                values.push_back(argv[i + 1]);
             }
+
+            // 调用批量插入接口
+            cache_->BatchPut(keys, values);
 
             return RespBuilder::SimpleString("OK");
         }

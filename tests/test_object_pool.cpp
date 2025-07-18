@@ -15,20 +15,21 @@ public:
     }
 };
 
+
 // 测试对象池的基本功能
 TEST(ObjectPoolTest, BasicFunctionality) {
     ObjectPool<TestObject> pool(2, 5);
 
     // 获取初始对象
-    auto obj1 = pool.GetObject();
+    auto obj1 = pool.RetrieveObject();
     ASSERT_NE(obj1, nullptr);
-    EXPECT_EQ(pool.GetObject().use_count(), 1);// 确保新获取的对象引用计数正确
+    EXPECT_EQ(pool.RetrieveObject().use_count(), 1);// 确保新获取的对象引用计数正确
 
     // 释放对象回池
     obj1.reset();
 
     // 验证对象是否成功返回池中
-    auto obj2 = pool.GetObject();
+    auto obj2 = pool.RetrieveObject();
     ASSERT_NE(obj2, nullptr);
     EXPECT_EQ(obj2.use_count(), 1);// 确保从池中获取的对象引用计数正确
 }
@@ -41,7 +42,7 @@ TEST(ObjectPoolTest, HighLoadTest) {
 
     // 获取大量对象以测试高负载情况
     for (int i = 0; i < 100; ++i) {
-        auto obj = pool.GetObject();
+        auto obj = pool.RetrieveObject();
         ASSERT_NE(obj, nullptr);
         obj->value = i;
         objects.push_back(obj);
@@ -52,7 +53,7 @@ TEST(ObjectPoolTest, HighLoadTest) {
 
     // 再次获取对象验证池的回收能力
     for (int i = 0; i < 50; ++i) {
-        auto obj = pool.GetObject();
+        auto obj = pool.RetrieveObject();
         ASSERT_NE(obj, nullptr);
         EXPECT_EQ(obj->value, 0);// 验证清理后初始值正确
     }
@@ -68,7 +69,7 @@ TEST(ObjectPoolTest, GBMemoryAllocation) {
     std::vector<std::shared_ptr<TestObject>> objects;
 
     for (size_t i = 0; i < objCount; ++i) {
-        auto obj = pool.GetObject();
+        auto obj = pool.RetrieveObject();
         if (!obj) {
             // 如果达到池的最大容量，等待一段时间再重试
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -85,7 +86,7 @@ TEST(ObjectPoolTest, GBMemoryAllocation) {
 
     // 再次获取部分对象验证池的回收能力
     for (size_t i = 0; i < objCount / 2; ++i) {
-        auto obj = pool.GetObject();
+        auto obj = pool.RetrieveObject();
         ASSERT_NE(obj, nullptr);
         EXPECT_EQ(obj->value, 0);// 验证清理后初始值正确
     }
@@ -106,7 +107,7 @@ TEST(ObjectPoolTest, OptimizedLargeMemoryAllocation) {
     size_t allocated = 0;
 
     for (size_t batch = 0; batch < 10; ++batch) {
-        auto objects = pool.GetObjects(batchSize);
+        auto objects = pool.RetrieveObject(batchSize);
         allocated += objects.size();
 
         if (objects.empty()) {

@@ -114,10 +114,16 @@ namespace Astra::Client {
         }
         return cmd;
     }
-
     void AstraClient::SendRaw(const std::string &data) {
-        if (send(sockfd_, data.data(), data.size(), 0) != static_cast<ssize_t>(data.size())) {
-            throw std::runtime_error("Failed to send data");
+        const char *data_ptr = data.data();
+        ssize_t remaining = data.size();
+        while (remaining > 0) {
+            ssize_t sent = send(sockfd_, data_ptr, remaining, 0);
+            if (sent <= 0) {
+                throw std::runtime_error("Failed to send data: " + std::string(sent == 0 ? "Connection closed" : strerror(errno)));
+            }
+            data_ptr += sent;
+            remaining -= sent;
         }
     }
 

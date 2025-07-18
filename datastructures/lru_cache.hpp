@@ -35,13 +35,40 @@ namespace Astra::datastructures {
             }
 
             MoveToFront(it);
-            // 修复参数错误：传递正确的迭代器而不是值
             UpdateHotKey(it->second, key);
             return std::make_optional(it->second->second);
         }
 
+        // 批量获取缓存中的值
+        // 返回与输入keys顺序一致的values，不存在或过期的key对应的值为std::nullopt
+        std::vector<std::optional<Value>> BatchGet(const std::vector<Key> &keys) {
+            std::vector<std::optional<Value>> values;
+            values.reserve(keys.size());
+
+            for (const auto &key : keys) {
+                auto it = cache_.find(key);
+                if (it == cache_.end()) {
+                    values.emplace_back(std::nullopt);
+                    continue;
+                }
+
+                // 检查是否过期
+                if (IsExpired(it)) {
+                    Remove(key);
+                    values.emplace_back(std::nullopt);
+                    continue;
+                }
+
+                MoveToFront(it);
+                UpdateHotKey(it->second, key);
+                values.emplace_back(it->second->second);
+            }
+
+            return values;
+        }
+
         void setCacheCapacity(size_t capacity) {
-            cache_.set_capacity(capacity);
+            capacity_ = capacity;
         }
 
         // 插入或更新缓存项
@@ -58,22 +85,59 @@ namespace Astra::datastructures {
                 cache_.erase(it);
             }
 
-            if (cache_.size() >= capacity_) {
-                EvictLRU();
-            }
+            // 检查容量并淘汰LRU项
+            EnsureCapacity(1);
 
-            // 插入新元素（使用移动语义）
-            usage_.emplace_front(key, std::move(value));
+            // 插入新元素
+            usage_.emplace_front(key, value);
             cache_[key] = usage_.begin();
             UpdateHotKey(usage_.begin(), key);
 
-            // 仅当TTL>0时设置过期时间
-            if (ttl.count() > 0) {
-                expiration_times_[key] = clock_type::now() + ttl;
-            } else if (ttl_ > std::chrono::seconds::zero()) {
-                expiration_times_[key] = clock_type::now() + ttl_;
+            // 设置过期时间
+            SetExpiration(key, ttl);
+        }
+
+        // 批量插入或更新缓存项
+        // 注意：keys和values的大小必须相同
+        void BatchPut(const std::vector<Key> &keys, const std::vector<Value> &values, 
+                     std::chrono::seconds ttl = std::chrono::seconds::zero()) {
+            if (keys.size() != values.size()) {
+                throw std::invalid_argument("keys and values must have the same size");
             }
-            // 当TTL=0且默认TTL=0时不记录过期时间，视为永不过期
+
+            if (capacity_ == 0) {
+                Clear();
+                return;
+            }
+
+            // 计算需要淘汰的数量
+            size_t required_capacity = keys.size();
+            size_t current_size = cache_.size();
+            size_t need_to_evict = 0;
+
+            if (current_size + required_capacity > capacity_) {
+                need_to_evict = current_size + required_capacity - capacity_;
+            }
+
+            // 批量淘汰LRU项
+            EvictLRUBatch(need_to_evict);
+
+            // 批量插入新元素
+            for (size_t i = 0; i < keys.size(); ++i) {
+                const auto &key = keys[i];
+                const auto &value = values[i];
+
+                auto it = cache_.find(key);
+                if (it != cache_.end()) {
+                    usage_.erase(it->second);
+                    cache_.erase(it);
+                }
+
+                usage_.emplace_front(key, value);
+                cache_[key] = usage_.begin();
+                UpdateHotKey(usage_.begin(), key);
+                SetExpiration(key, ttl);
+            }
         }
 
         // 检查是否包含某个键
@@ -104,7 +168,7 @@ namespace Astra::datastructures {
         std::vector<Key> GetKeys() const {
             std::vector<Key> keys;
             for (const auto &entry: usage_) {
-                keys.push_back(entry.first);
+                keys.emplace_back(entry.first);
             }
             return keys;
         }
@@ -113,7 +177,7 @@ namespace Astra::datastructures {
         std::vector<Value> GetValues() const {
             std::vector<Value> values;
             for (const auto &entry: usage_) {
-                values.push_back(entry.second);
+                values.emplace_back(entry.second);
             }
             return values;
         }
@@ -124,6 +188,7 @@ namespace Astra::datastructures {
             cache_.clear();
             access_count_.clear();
             hot_key_cache_.hot_keys.clear();
+            expiration_times_.clear();
         }
 
         // 删除指定键
@@ -143,10 +208,22 @@ namespace Astra::datastructures {
                 hot_key_cache_.hot_keys.erase(hot_it);
             }
 
-            // 移除访问计数
+            // 移除访问计数和过期时间
             access_count_.erase(key);
+            expiration_times_.erase(key);
 
             return true;
+        }
+
+        // 批量删除指定键
+        size_t BatchRemove(const std::vector<Key> &keys) {
+            size_t removed_count = 0;
+            for (const auto &key : keys) {
+                if (Remove(key)) {
+                    removed_count++;
+                }
+            }
+            return removed_count;
         }
 
         // 启动定期清理任务
@@ -158,7 +235,7 @@ namespace Astra::datastructures {
 
         //  停止定期清理任务
         void StopEvictionTask() {
-            eviction_active_ = false;// 添加这个标志
+            eviction_active_ = false;
         }
 
 
@@ -193,7 +270,46 @@ namespace Astra::datastructures {
 
             const auto &lru_entry = usage_.back();
             cache_.erase(lru_entry.first);
+            expiration_times_.erase(lru_entry.first);
+            access_count_.erase(lru_entry.first);
+            hot_key_cache_.hot_keys.erase(lru_entry.first);
             usage_.pop_back();
+        }
+
+        // 批量淘汰最近最少使用的项
+        void EvictLRUBatch(size_t count) {
+            if (count == 0 || usage_.empty()) return;
+
+            // 限制最多淘汰的数量
+            size_t evict_count = std::min(count, usage_.size());
+            
+            for (size_t i = 0; i < evict_count; ++i) {
+                const auto &lru_entry = usage_.back();
+                cache_.erase(lru_entry.first);
+                expiration_times_.erase(lru_entry.first);
+                access_count_.erase(lru_entry.first);
+                hot_key_cache_.hot_keys.erase(lru_entry.first);
+                usage_.pop_back();
+            }
+        }
+
+        // 确保有足够的容量
+        void EnsureCapacity(size_t required) {
+            if (cache_.size() + required <= capacity_) return;
+            
+            size_t need_to_evict = cache_.size() + required - capacity_;
+            EvictLRUBatch(need_to_evict);
+        }
+
+        // 设置过期时间
+        void SetExpiration(const Key &key, std::chrono::seconds ttl) {
+            if (ttl.count() > 0) {
+                expiration_times_[key] = clock_type::now() + ttl;
+            } else if (ttl_ > std::chrono::seconds::zero()) {
+                expiration_times_[key] = clock_type::now() + ttl_;
+            } else {
+                expiration_times_.erase(key);
+            }
         }
 
         // 更新热点键缓存

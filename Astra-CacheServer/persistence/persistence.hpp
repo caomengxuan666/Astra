@@ -12,6 +12,7 @@
 #include <datastructures/lru_cache.hpp>
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 namespace Astra::Persistence {
     namespace fs = std::filesystem;
     using namespace Astra::datastructures;

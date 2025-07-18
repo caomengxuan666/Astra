@@ -7,16 +7,17 @@
 Astra 是一个基于 C++17 的高性能 Redis 兼容缓存中间件，采用模块化设计实现以下核心价值：
 - 提供线程安全的 LRU 缓存实现
 - 支持 Redis 协议的网络通信
-- 实现命令模式的客户端 SDK
+- 实现命令模式的客户端 SDK，包含C++ SDK CSDK LabViewSDK,兼容hiredis 库
 - 支持 TTL 过期机制与后台清理
-- 提供分片锁机制提升并发性能
+- 在Windows下支持服务模式启动
+- 支持rdb快照保存和恢复
 
 ## 项目截图
 
 ![alt text](snapshots/{734A5CB7-AED1-4D02-BFF0-50F80F7A0A6F}.png)
 
 ## 系统架构
-![Architecture](docs/architecture.png)
+![Architecture](snapshots/architecture.png)
 
 ### 核心模块
 | 模块 | 功能 | 技术实现 |
@@ -89,15 +90,28 @@ $ cd Astra
 $ mkdir build && cd build
 $ cmake ..
 $ make -j$(nproc)
+
+# 安装项目
+$ sudo make install
 ```
 
 ### 启动服务
 ```bash
 # 启动缓存服务器
-$ ./build/bin/Astra-CacheServer 6379
+$ Astra-CacheServer -p 6379
 
 # 运行示例客户端
 $ ./build/bin/example_client
+
+#  在windows下安装服务模式
+$ Astra-CacheServer.exe install
+
+# 启动服务
+$ Astra-CacheServer.exe start
+
+# 停止服务
+$ Astra-CacheServer.exe stop
+$
 ```
 
 ## 功能演示
@@ -129,9 +143,11 @@ Astra/
 ├── utils/                # 工具类（日志/ScopeGuard）
 ├── concurrent/           # 并发支持（线程池/TaskQueue）
 ├── datastructures/       # 数据结构（LRU/无锁队列）
-├── tests/                # 单元测试套件
+├── tests/                # GTest单元测试
 ├── third-party/          # 第三方依赖（Asio/fmt）
-└── sdk/                  # 客户端SDK（命令模式实现）
+├── sdk/                  # 客户端SDK（命令模式实现）
+└── benchmark/            # 性能测试
+
 ```
 
 ## 贡献指南

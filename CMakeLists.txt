@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(ZenCore VERSION 0.1 LANGUAGES CXX C)
+project(Astra VERSION 0.1 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -13,8 +13,10 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
+
+
 # 包含路径
-include_directories(
+include_directories(    
     ${PROJECT_SOURCE_DIR}
     ${PROJECT_SOURCE_DIR}/third-party
     ${PROJECT_SOURCE_DIR}/core

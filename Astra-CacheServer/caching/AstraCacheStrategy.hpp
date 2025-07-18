@@ -24,6 +24,16 @@ namespace Astra::datastructures {
             static_cast<Derived *>(this)->Put(key, value, ttl);
         }
 
+        //批量插入缓存接口
+        void batchPut(const std::vector<std::pair<Key, Value>> &kvs, std::chrono::seconds ttl = std::chrono::seconds::zero()) {
+            static_cast<Derived *>(this)->BatchPut(kvs, ttl);
+        }
+
+        //批量获取缓存接口
+        [[nodiscard]] std::vector<std::optional<Value>> BatchGet(const std::vector<Key> &keys) {
+            return static_cast<const Derived *>(this)->BatchGet(keys);
+        }
+
         //获取所有键的接口
         std::vector<Key> GetKeys() const {
             return static_cast<const Derived *>(this)->GetKeys();
@@ -42,6 +52,11 @@ namespace Astra::datastructures {
         //删除指定键
         bool Remove(const Key &key) {
             return static_cast<Derived *>(this)->Remove(key);
+        }
+
+        //批量删除指定键
+        [[nodiscard]] size_t BatchRemove(const std::vector<Key> &keys) {
+            return static_cast<const Derived *>(this)->BatchRemove(keys);
         }
 
         //必备获取key的接口
@@ -80,8 +95,17 @@ namespace Astra::datastructures {
             return strategy_.Get(key);
         }
 
+        std::vector<std::optional<Value>> BatchGet(const std::vector<Key> &keys)  {
+            return strategy_.BatchGet(keys);
+        }
+
         void Put(const Key &key, const Value &value, std::chrono::seconds ttl = std::chrono::seconds::zero()) {
             strategy_.Put(key, value, ttl);
+        }
+
+        void BatchPut(const std::vector<Key> &keys, const std::vector<Value> &values,
+                      std::chrono::seconds ttl = std::chrono::seconds::zero()) {
+            strategy_.BatchPut(keys, values, ttl);
         }
 
         std::optional<std::chrono::seconds> GetExpiryTime(const Key &key) const {
@@ -96,13 +120,16 @@ namespace Astra::datastructures {
             return strategy_.GetValues();
         }
 
-
         void Clear() {
             strategy_.Clear();
         }
 
         bool Remove(const Key &key) {
             return strategy_.Remove(key);
+        }
+
+        size_t BatchRemove(const std::vector<Key> &keys) {
+            return strategy_.BatchRemove(keys);
         }
 
         bool Contains(const Key &key) const {

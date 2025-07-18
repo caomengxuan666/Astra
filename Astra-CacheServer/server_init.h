@@ -18,7 +18,6 @@
 #include <cstdlib>
 #include <memory>
 
-
 // 仅在Windows平台包含插件头文件
 #ifdef _WIN32
 #include "platform/windows/WindowsServicePlugin.h"
@@ -28,6 +27,7 @@ using namespace Astra;
 using namespace Astra::utils;
 using namespace Astra::Persistence;
 
+static constexpr size_t MAXLRUSIZE = std::numeric_limits<size_t>::max();
 
 // 用于创建独立进程的函数示例
 inline static bool StartTrayProcess(const std::wstring &executablePath) {
@@ -161,7 +161,8 @@ inline int startServer(int argc, char *argv[]) noexcept {
                                              {'l', "loglevel"}, "info");
     args::ValueFlag<std::string> coreDump(parser, "filename", "Core dump file name", {'c', "coredump"},
                                           dumpFilePath.string());
-    args::ValueFlag<size_t> maxLRUSize(parser, "size", "Maximum size of LRU cache", {'m', "maxsize"}, 100000);
+    args::ValueFlag<size_t> maxLRUSize(parser, "size", "Maximum size of LRU cache", {'m', "maxsize"}, MAXLRUSIZE);
+    args::ValueFlag<bool> enableLoggingFileFlag(parser, "enable", "Enable logging to file", {'f', "file"}, false);
 
     try {
         parser.ParseCLI(argc, argv);
@@ -179,6 +180,7 @@ inline int startServer(int argc, char *argv[]) noexcept {
     std::string logLevelRaw = args::get(logLevelStr);
     std::string persistence_file_name = args::get(coreDump);
     size_t lru_max_size = args::get(maxLRUSize);
+    bool enableLoggingFile = args::get(enableLoggingFileFlag);
 
     // 设置日志级别
     try {
@@ -187,6 +189,13 @@ inline int startServer(int argc, char *argv[]) noexcept {
     } catch (const std::invalid_argument &e) {
         std::cerr << e.what() << std::endl;
         return 2;
+    }
+
+    // 设置日志文件输出
+    if (enableLoggingFile) {
+        auto &logger = Astra::Logger::GetInstance();
+        auto fileAppender = std::make_shared<Astra::SyncFileAppender>(logger.GetDefaultLogDir());
+        logger.AddAppender(fileAppender);
     }
 
     writeLogoToConsole(listeningPort, lru_max_size, persistence_file_name);

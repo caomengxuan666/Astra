@@ -26,7 +26,6 @@ namespace Astra::apps {
               task_queue_(std::move(global_task_queue)) {}
 
         void Start() {
-            ZEN_LOG_INFO("Client connected from: {}", socket_.remote_endpoint().address().to_string());
             if (!stopped_) {
                 // 通过strand调度Start操作
                 asio::post(strand_, [self = shared_from_this()]() {
@@ -283,17 +282,18 @@ namespace Astra::apps {
         void WriteResponse(const std::string &response) {
             if (stopped_) return;
 
-            // 使用strand确保写操作在单线程执行
-            asio::async_write(socket_, asio::buffer(response),
-                              asio::bind_executor(strand_,
-                                                  [this, self = shared_from_this(), response](const asio::error_code &ec, std::size_t) {
-                                                      if (ec) {
-                                                          ZEN_LOG_WARN("Failed to send response: {}", ec.message());
-                                                          Stop();
-                                                      } else {
-                                                          ZEN_LOG_DEBUG("Sent response: {}", response);
-                                                      }
-                                                  }));
+            auto self = shared_from_this();
+            auto response_copy = std::make_shared<std::string>(response);
+
+            asio::async_write(socket_, asio::buffer(*response_copy),
+                              asio::bind_executor(strand_, [self, response_copy](const asio::error_code &ec, std::size_t) {
+                                  if (ec) {
+                                      ZEN_LOG_WARN("Failed to send response: {}", ec.message());
+                                      self->Stop();
+                                  } else {
+                                      ZEN_LOG_DEBUG("Sent response: {}", *response_copy);
+                                  }
+                              }));
         }
 
         std::shared_ptr<concurrent::TaskQueue> task_queue_;
