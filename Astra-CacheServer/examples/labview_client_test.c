@@ -1,4 +1,5 @@
 #include "sdk/astra_client_labview.h"
+#include "sdk/astra_resp.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

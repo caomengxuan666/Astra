@@ -16,8 +16,6 @@ Astra 是一个基于 C++17 的高性能 Redis 兼容缓存中间件，采用模
 
 ![alt text](snapshots/{734A5CB7-AED1-4D02-BFF0-50F80F7A0A6F}.png)
 
-## 系统架构
-![Architecture](snapshots/architecture.png)
 
 ### 核心模块
 | 模块 | 功能 | 技术实现 |
@@ -149,6 +147,12 @@ Astra/
 └── benchmark/            # 性能测试
 
 ```
+
+### 常见问题
+
+#### Q: 为什么会出现 "Failed to send response: 远程主机强迫关闭了一个现有的连接"?
+
+**A:** 这是因为客户端在调用 `DEL` 方法后立即退出了，导致服务器发送的消息被认为"丢失"了，因为'DEL'本身会返回一个'OK'。但这完全不影响程序的正常运行。客户端本身不需要一直阻塞以等待服务器确认删除数据的成功与否。正常情况下删除操作也不会失败。
 
 ## 贡献指南
 请通过 [CONTRIBUTING.md](CONTRIBUTING.md) 获取完整的贡献指南，包含代码规范、提交要求和审查流程。

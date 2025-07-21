@@ -8,6 +8,7 @@ extern "C" {
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include "astra_resp.h"
 
 // 线程局部错误存储
 thread_local std::string last_error_lv;
@@ -26,7 +27,7 @@ static std::atomic<uintptr_t> next_context_id(1);
 static constexpr auto CONTEXT_TIMEOUT = std::chrono::minutes(5);
 
 // 清理超时上下文
-static void cleanup_expired_contexts() {
+static void ZEN_CALL cleanup_expired_contexts() {
     auto now = std::chrono::steady_clock::now();
     std::lock_guard<std::mutex> lock(context_mutex);
 
@@ -40,7 +41,7 @@ static void cleanup_expired_contexts() {
 }
 
 // 转换复杂RespValue到简单结构
-static void convert_to_simple_resp(const RespValue_C *resp, SimpleRespValue_C *simple) {
+static void ZEN_CALL convert_to_simple_resp(const RespValue_C *resp, SimpleRespValue_C *simple) {
     if (!resp || !simple) return;
 
     simple->type = astra_resp_value_type(resp);
@@ -71,7 +72,7 @@ static void convert_to_simple_resp(const RespValue_C *resp, SimpleRespValue_C *s
 }
 
 // 客户端管理
-void *astra_lv_client_create(const char *host, int port) {
+void *ZEN_CALL astra_lv_client_create(const char *host, int port) {
     try {
         return astra_client_create(host, port);
     } catch (const std::exception &e) {
@@ -80,7 +81,7 @@ void *astra_lv_client_create(const char *host, int port) {
     }
 }
 
-void astra_lv_client_destroy(void *client) {
+void ZEN_CALL astra_lv_client_destroy(void *client) {
     astra_client_destroy(static_cast<AstraClient_C *>(client));
 }
 
@@ -128,7 +129,7 @@ IMPLEMENT_KEY_COMMAND(astra_lv_incr, astra_client_incr)
 IMPLEMENT_KEY_COMMAND(astra_lv_decr, astra_client_decr)
 
 // 修正括号错误：将多余的右括号移到参数列表末尾
-int astra_lv_set(void *client, const char *key, const char *value, SimpleRespValue_C *out_response) {
+int ZEN_CALL astra_lv_set(void *client, const char *key, const char *value, SimpleRespValue_C *out_response) {
     if (!client || !key || !value || !out_response) {
         last_error_lv = "Invalid arguments";
         return -1;
@@ -142,7 +143,7 @@ int astra_lv_set(void *client, const char *key, const char *value, SimpleRespVal
     return 0;
 }
 
-int astra_lv_setex(void *client, const char *key, const char *value, int ttl, SimpleRespValue_C *out_response) {
+int ZEN_CALL astra_lv_setex(void *client, const char *key, const char *value, int ttl, SimpleRespValue_C *out_response) {
     if (!client || !key || !value || !out_response) {
         last_error_lv = "Invalid arguments";
         return -1;
@@ -156,7 +157,7 @@ int astra_lv_setex(void *client, const char *key, const char *value, int ttl, Si
     return 0;
 }
 
-int astra_lv_del(void *client, const char **keys, int key_count, SimpleRespValue_C *out_response) {
+int ZEN_CALL astra_lv_del(void *client, const char **keys, int key_count, SimpleRespValue_C *out_response) {
     if (!client || !keys || key_count <= 0 || !out_response) {
         last_error_lv = "Invalid arguments";
         return -1;
@@ -170,7 +171,7 @@ int astra_lv_del(void *client, const char **keys, int key_count, SimpleRespValue
     return 0;
 }
 
-int astra_lv_keys(void *client, const char *pattern, SimpleRespValue_C *out_response) {
+int ZEN_CALL astra_lv_keys(void *client, const char *pattern, SimpleRespValue_C *out_response) {
     if (!client || !pattern || !out_response) {
         last_error_lv = "Invalid arguments";
         return -1;
@@ -184,7 +185,7 @@ int astra_lv_keys(void *client, const char *pattern, SimpleRespValue_C *out_resp
     return 0;
 }
 
-int astra_lv_mset(void *client, const char **keys, const char **values, int item_count, SimpleRespValue_C *out_response) {
+int ZEN_CALL astra_lv_mset(void *client, const char **keys, const char **values, int item_count, SimpleRespValue_C *out_response) {
     if (!client || !keys || !values || item_count <= 0 || !out_response) {
         last_error_lv = "Invalid arguments";
         return -1;
@@ -206,7 +207,7 @@ int astra_lv_mset(void *client, const char **keys, const char **values, int item
     return 0;
 }
 
-int astra_lv_mget(void *client, const char **keys, int key_count, SimpleRespValue_C *out_response) {
+int ZEN_CALL astra_lv_mget(void *client, const char **keys, int key_count, SimpleRespValue_C *out_response) {
     if (!client || !keys || key_count <= 0 || !out_response) {
         last_error_lv = "Invalid arguments";
         return -1;
@@ -223,7 +224,7 @@ int astra_lv_mget(void *client, const char **keys, int key_count, SimpleRespValu
 }
 
 // 数组访问接口
-int astra_lv_begin_array_access(void *client, const SimpleRespValue_C *array_response,
+int ZEN_CALL astra_lv_begin_array_access(void *client, const SimpleRespValue_C *array_response,
                                 ArrayContext_C *out_context) {
     if (!array_response || array_response->type != RESP_ARRAY_C || !out_context) {
         last_error_lv = "Invalid arguments";
@@ -250,7 +251,7 @@ int astra_lv_begin_array_access(void *client, const SimpleRespValue_C *array_res
     return 0;
 }
 
-int astra_lv_get_array_element(void *client, const ArrayContext_C *context,
+int ZEN_CALL astra_lv_get_array_element(void *client, const ArrayContext_C *context,
                                int index, SimpleRespValue_C *out_element) {
     if (!context || !out_element) {
         last_error_lv = "Invalid arguments";
@@ -284,7 +285,7 @@ int astra_lv_get_array_element(void *client, const ArrayContext_C *context,
     return 0;
 }
 
-void astra_lv_end_array_access(ArrayContext_C *context) {
+void ZEN_CALL astra_lv_end_array_access(ArrayContext_C *context) {
     if (!context || !context->context_id) return;
 
     uintptr_t context_id = reinterpret_cast<uintptr_t>(context->context_id);
@@ -295,7 +296,7 @@ void astra_lv_end_array_access(ArrayContext_C *context) {
 }
 
 // 内存管理
-void astra_lv_free_response(SimpleRespValue_C *response) {
+void ZEN_CALL astra_lv_free_response(SimpleRespValue_C *response) {
     if (!response) return;
 
     if (response->reserved) {
@@ -310,6 +311,199 @@ void astra_lv_free_response(SimpleRespValue_C *response) {
 }
 
 // 错误处理
-const char *astra_lv_last_error() {
+const char *ZEN_CALL astra_lv_last_error() {
     return last_error_lv.empty() ? "No error" : last_error_lv.c_str();
+}
+
+
+// LabVIEW 友好封装函数实现
+
+int ZEN_CALL astra_lv_ping_flat(
+    void *client,
+    int *out_type,
+    const char **out_str,
+    long long *out_integer,
+    int *out_array_size) {
+    SimpleRespValue_C response = {0};
+    int result = astra_lv_ping(client, &response);
+    if (out_type) *out_type = response.type;
+    if (out_str) *out_str = response.str;
+    if (out_integer) *out_integer = response.integer;
+    if (out_array_size) *out_array_size = response.array_size;
+    return result;
+}
+
+int ZEN_CALL astra_lv_set_flat(
+    void *client,
+    const char *key,
+    const char *value,
+    int *out_type,
+    const char **out_str,
+    long long *out_integer,
+    int *out_array_size) {
+    SimpleRespValue_C response = {0};
+    int result = astra_lv_set(client, key, value, &response);
+    if (out_type) *out_type = response.type;
+    if (out_str) *out_str = response.str;
+    if (out_integer) *out_integer = response.integer;
+    if (out_array_size) *out_array_size = response.array_size;
+    return result;
+}
+
+int ZEN_CALL astra_lv_get_flat(
+    void *client,
+    const char *key,
+    int *out_type,
+    const char **out_str,
+    long long *out_integer,
+    int *out_array_size) {
+    SimpleRespValue_C response = {0};
+    int result = astra_lv_get(client, key, &response);
+    if (out_type) *out_type = response.type;
+    if (out_str) *out_str = response.str;
+    if (out_integer) *out_integer = response.integer;
+    if (out_array_size) *out_array_size = response.array_size;
+    return result;
+}
+
+int ZEN_CALL astra_lv_mset_flat(
+    void *client,
+    const char *keys_buffer, int keys_buffer_size,
+    const char *values_buffer, int values_buffer_size,
+    int item_count,
+    int *out_type,
+    const char **out_str,
+    long long *out_integer,
+    int *out_array_size) {
+    std::vector<const char*> keys;
+    std::vector<const char*> values;
+
+    const char *k_ptr = keys_buffer;
+    for (int i = 0; i < item_count && k_ptr < keys_buffer + keys_buffer_size; ++i) {
+        keys.push_back(k_ptr);
+        k_ptr += strlen(k_ptr) + 1;
+    }
+
+    const char *v_ptr = values_buffer;
+    for (int i = 0; i < item_count && v_ptr < values_buffer + values_buffer_size; ++i) {
+        values.push_back(v_ptr);
+        v_ptr += strlen(v_ptr) + 1;
+    }
+
+    SimpleRespValue_C response = {0};
+    int result = astra_lv_mset(client, keys.data(), values.data(), item_count, &response);
+    if (out_type) *out_type = response.type;
+    if (out_str) *out_str = response.str;
+    if (out_integer) *out_integer = response.integer;
+    if (out_array_size) *out_array_size = response.array_size;
+    return result;
+}
+
+int ZEN_CALL astra_lv_mget_flat(
+    void *client,
+    const char *keys_buffer, int keys_buffer_size,
+    int key_count,
+    int *out_type,
+    const char **out_str,
+    long long *out_integer,
+    int *out_array_size) {
+    std::vector<const char*> keys;
+
+    const char *ptr = keys_buffer;
+    for (int i = 0; i < key_count && ptr < keys_buffer + keys_buffer_size; ++i) {
+        keys.push_back(ptr);
+        ptr += strlen(ptr) + 1;
+    }
+
+    SimpleRespValue_C response = {0};
+    int result = astra_lv_mget(client, keys.data(), key_count, &response);
+    if (out_type) *out_type = response.type;
+    if (out_str) *out_str = response.str;
+    if (out_integer) *out_integer = response.integer;
+    if (out_array_size) *out_array_size = response.array_size;
+    return result;
+}
+
+int ZEN_CALL astra_lv_del_flat(
+    void *client,
+    const char *keys_buffer, int keys_buffer_size,
+    int key_count,
+    int *out_type,
+    const char **out_str,
+    long long *out_integer,
+    int *out_array_size) {
+    std::vector<const char*> keys;
+
+    const char *ptr = keys_buffer;
+    for (int i = 0; i < key_count && ptr < keys_buffer + keys_buffer_size; ++i) {
+        keys.push_back(ptr);
+        ptr += strlen(ptr) + 1;
+    }
+
+    SimpleRespValue_C response = {0};
+    int result = astra_lv_del(client, keys.data(), key_count, &response);
+    if (out_type) *out_type = response.type;
+    if (out_str) *out_str = response.str;
+    if (out_integer) *out_integer = response.integer;
+    if (out_array_size) *out_array_size = response.array_size;
+    return result;
+}
+
+int ZEN_CALL astra_lv_keys_flat(
+    void *client,
+    const char *pattern,
+    int *out_type,
+    const char **out_str,
+    long long *out_integer,
+    int *out_array_size) {
+    SimpleRespValue_C response = {0};
+    int result = astra_lv_keys(client, pattern, &response);
+    if (out_type) *out_type = response.type;
+    if (out_str) *out_str = response.str;
+    if (out_integer) *out_integer = response.integer;
+    if (out_array_size) *out_array_size = response.array_size;
+    return result;
+}
+
+int ZEN_CALL astra_lv_begin_array_access_flat(
+    void *client,
+    void *array_response_reserved,
+    void **out_context_id) {
+    ArrayContext_C context_out = {0};
+    int result = astra_lv_begin_array_access(client, (SimpleRespValue_C *)array_response_reserved, &context_out);
+    if (result == 0 && out_context_id) {
+        *out_context_id = context_out.context_id;
+    }
+    return result;
+}
+
+int ZEN_CALL astra_lv_get_array_element_flat(
+    void *client,
+    void *context_id,
+    int index,
+    int *out_type,
+    const char **out_str,
+    long long *out_integer,
+    int *out_array_size) {
+    ArrayContext_C context = {0};
+    context.context_id = context_id;
+    SimpleRespValue_C element = {0};
+    int result = astra_lv_get_array_element(client, &context, index, &element);
+    if (out_type) *out_type = element.type;
+    if (out_str) *out_str = element.str;
+    if (out_integer) *out_integer = element.integer;
+    if (out_array_size) *out_array_size = element.array_size;
+    return result;
+}
+
+void ZEN_CALL astra_lv_free_response_flat(
+    int type,
+    const char *str,
+    long long integer,
+    int array_size,
+    void *reserved) {
+    SimpleRespValue_C response = {
+        type, str, integer, array_size, reserved
+    };
+    astra_lv_free_response(&response);
 }

@@ -63,3 +63,14 @@ endif ()
 find_package(hiredis CONFIG REQUIRED)
 add_executable(example_hiredis hiredis_client.cpp)
 target_link_libraries(example_hiredis PRIVATE hiredis::hiredis zenutils)
+
+add_executable(labview_flat_test labview_flat_test.c)
+target_include_directories(labview_flat_test PRIVATE ../${CMAKE_CURRENT_SOURCE_DIR}/sdk)
+target_link_libraries(labview_flat_test PRIVATE Astra-CacheSDK)
+target_link_libraries(labview_flat_test PRIVATE zenutils)
+if(MSVC)
+    # 设置C示例的编译选项
+    target_compile_options(labview_flat_test PRIVATE
+            $<$<C_COMPILER_ID:MSVC>:/TC>  # 确保MSVC以C模式编译
+    )
+endif ()
