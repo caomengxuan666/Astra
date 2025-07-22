@@ -71,7 +71,7 @@ inline std::string EnsureUTF8(const std::string &input) {
 
 // 非 Windows 下默认假设输入是 UTF-8
 inline std::string EnsureUTF8(const std::string &input) {
-    return input; // 假设非 Windows 环境默认使用 UTF-8
+    return input;// 假设非 Windows 环境默认使用 UTF-8
 }
 
 #endif

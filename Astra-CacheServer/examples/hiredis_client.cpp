@@ -1,3 +1,4 @@
+#include "core/astra.hpp"
 #include <hiredis/hiredis.h>
 #include <iostream>
 

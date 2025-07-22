@@ -1,11 +1,12 @@
+#include "core/astra.hpp"
 #include "sdk/astra_client.hpp"
 #include <chrono>
 #include <iostream>
 #include <numeric>
 #include <stdexcept>
 #include <string>
-#include <vector>
 #include <thread>
+#include <vector>
 
 
 // 性能指标结构体
@@ -53,7 +54,7 @@ int main() {
     for (int port: ports) {
         std::cout << "\n================ Testing on port " << port << " ==================" << std::endl;
         try {
-            Astra::Client::AstraClient* client = new Astra::Client::AstraClient("127.0.0.1", port);
+            Astra::Client::AstraClient *client = new Astra::Client::AstraClient("127.0.0.1", port);
             std::cout << "Connected to Astra-CacheServer on port " << port << std::endl;
 
             // 构造测试数据

@@ -1,3 +1,4 @@
+#include "core/astra.hpp"
 extern "C" {
 #include "astra_client_c.h"// C头文件
 }

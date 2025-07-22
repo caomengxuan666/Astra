@@ -12,11 +12,11 @@ extern "C" {
  * @brief RESP 响应结构体
  */
 typedef struct {
-    int type;         /**< RESP 类型枚举 */
-    const char *str;  /**< 字符串值 */
+    int type;          /**< RESP 类型枚举 */
+    const char *str;   /**< 字符串值 */
     long long integer; /**< 整数 */
-    int array_size;   /**< 数组大小 */
-    void *reserved;  /**< 保留字段 */
+    int array_size;    /**< 数组大小 */
+    void *reserved;    /**< 保留字段 */
 } SimpleRespValue_C;
 
 /**
@@ -304,4 +304,4 @@ ZEN_API void ZEN_CALL astra_lv_free_response_flat(int type, const char *str, lon
 }
 #endif
 
-#endif // ASTRA_CLIENT_LABVIEW_H
+#endif// ASTRA_CLIENT_LABVIEW_H

@@ -45,7 +45,7 @@ namespace Astra::datastructures {
             std::vector<std::optional<Value>> values;
             values.reserve(keys.size());
 
-            for (const auto &key : keys) {
+            for (const auto &key: keys) {
                 auto it = cache_.find(key);
                 if (it == cache_.end()) {
                     values.emplace_back(std::nullopt);
@@ -99,8 +99,8 @@ namespace Astra::datastructures {
 
         // 批量插入或更新缓存项
         // 注意：keys和values的大小必须相同
-        void BatchPut(const std::vector<Key> &keys, const std::vector<Value> &values, 
-                     std::chrono::seconds ttl = std::chrono::seconds::zero()) {
+        void BatchPut(const std::vector<Key> &keys, const std::vector<Value> &values,
+                      std::chrono::seconds ttl = std::chrono::seconds::zero()) {
             if (keys.size() != values.size()) {
                 throw std::invalid_argument("keys and values must have the same size");
             }
@@ -218,7 +218,7 @@ namespace Astra::datastructures {
         // 批量删除指定键
         size_t BatchRemove(const std::vector<Key> &keys) {
             size_t removed_count = 0;
-            for (const auto &key : keys) {
+            for (const auto &key: keys) {
                 if (Remove(key)) {
                     removed_count++;
                 }
@@ -282,7 +282,7 @@ namespace Astra::datastructures {
 
             // 限制最多淘汰的数量
             size_t evict_count = std::min(count, usage_.size());
-            
+
             for (size_t i = 0; i < evict_count; ++i) {
                 const auto &lru_entry = usage_.back();
                 cache_.erase(lru_entry.first);
@@ -296,7 +296,7 @@ namespace Astra::datastructures {
         // 确保有足够的容量
         void EnsureCapacity(size_t required) {
             if (cache_.size() + required <= capacity_) return;
-            
+
             size_t need_to_evict = cache_.size() + required - capacity_;
             EvictLRUBatch(need_to_evict);
         }

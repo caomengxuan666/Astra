@@ -4,12 +4,15 @@
 #include "caching/AstraCacheStrategy.hpp"
 #include "command_parser.hpp"
 #include "resp_builder.hpp"
+#include "server/ChannelManager.hpp"
+#include "server/session.hpp"
 #include <chrono>
 #include <datastructures/lru_cache.hpp>
 #include <memory>
 
 namespace Astra::proto {
     using namespace datastructures;
+    using namespace Astra::apps;
 
     class GetCommand : public ICommand {
     public:
@@ -393,4 +396,268 @@ namespace Astra::proto {
         std::shared_ptr<AstraCache<LRUCache, std::string, std::string>> cache_;
     };
 
+    class SubscribeCommand : public ICommand {
+    public:
+        explicit SubscribeCommand(std::shared_ptr<ChannelManager> channel_manager)
+            : channel_manager_(std::move(channel_manager)) {}
+
+        std::string Execute(const std::vector<std::string> &argv) override {
+            if (argv.size() < 2) {
+                return RespBuilder::Error("SUBSCRIBE requires at least one channel");
+            }
+
+            // 记录本次订阅的频道（需要结合 Session 存储订阅关系，这里返回响应格式）
+            std::unordered_set<std::string> channels;
+            for (size_t i = 1; i < argv.size(); ++i) {
+                channels.insert(argv[i]);
+            }
+
+            // 构建订阅响应（实际使用时需结合 Session 的 subscribed_channels_）
+            return RespBuilder::SubscribeResponse(channels);
+        }
+
+    private:
+        std::shared_ptr<ChannelManager> channel_manager_;// 频道管理器
+    };
+
+    // 取消订阅命令：UNSUBSCRIBE [channel [channel ...]]
+    class UnsubscribeCommand : public ICommand {
+    public:
+        // 构造函数：需要频道管理器和当前会话（关键）
+        explicit UnsubscribeCommand(
+                std::shared_ptr<apps::ChannelManager> channel_manager,
+                std::weak_ptr<apps::Session> session// 必须包含session参数
+                ) : channel_manager_(std::move(channel_manager)),
+                    session_(std::move(session)) {}
+
+        std::string Execute(const std::vector<std::string> &argv) override {
+            // 锁定会话（确保会话未过期）
+            auto session = session_.lock();
+            if (!session) {
+                return RespBuilder::Error("Session expired");
+            }
+
+            std::unordered_set<std::string> unsubscribed;
+            const auto &subscribed_channels = session->GetSubscribedChannels();
+
+            if (argv.size() < 2) {
+                // 无参数：取消所有订阅
+                unsubscribed = subscribed_channels;
+                for (const auto &channel: subscribed_channels) {
+                    channel_manager_->Unsubscribe(channel, session);
+                }
+            } else {
+                // 有参数：取消指定频道
+                for (size_t i = 1; i < argv.size(); ++i) {
+                    const std::string &channel = argv[i];
+                    if (subscribed_channels.count(channel)) {
+                        unsubscribed.insert(channel);
+                        channel_manager_->Unsubscribe(channel, session);
+                    }
+                }
+            }
+
+            // 构建响应（包含实际取消的频道）
+            return RespBuilder::UnsubscribeResponse(unsubscribed);
+        }
+
+    private:
+        std::shared_ptr<apps::ChannelManager> channel_manager_;// 频道管理器
+        std::weak_ptr<apps::Session> session_;                 // 当前会话（弱指针）
+    };
+
+    // 发布命令：PUBLISH channel message
+    class PublishCommand : public ICommand {
+    public:
+        explicit PublishCommand(std::shared_ptr<ChannelManager> channel_manager)
+            : channel_manager_(std::move(channel_manager)) {}
+
+        std::string Execute(const std::vector<std::string> &argv) override {
+            if (argv.size() != 3) {
+                return RespBuilder::Error("PUBLISH requires channel and message");
+            }
+
+            const std::string &channel = argv[1];
+            const std::string &message = argv[2];
+            size_t subscribers = channel_manager_->Publish(channel, message);// 发布消息并返回订阅者数量
+
+            return RespBuilder::Integer(subscribers);// 返回接收消息的订阅者数量
+        }
+
+    private:
+        std::shared_ptr<ChannelManager> channel_manager_;
+    };
+
+    // 模式订阅命令：PSUBSCRIBE pattern [pattern ...]
+    class PSubscribeCommand : public ICommand {
+    public:
+        explicit PSubscribeCommand(
+                std::shared_ptr<apps::ChannelManager> channel_manager,
+                std::weak_ptr<apps::Session> session) : channel_manager_(std::move(channel_manager)),
+                                                        session_(std::move(session)) {}
+
+        std::string Execute(const std::vector<std::string> &argv) override {
+            auto session = session_.lock();
+            if (!session) {
+                return RespBuilder::Error("Session expired");
+            }
+
+            if (argv.size() < 2) {
+                return RespBuilder::Error("PSUBSCRIBE requires at least one pattern");
+            }
+
+            std::unordered_set<std::string> subscribed_patterns;
+            for (size_t i = 1; i < argv.size(); ++i) {
+                const std::string &pattern = argv[i];
+                session->AddSubscribedPattern(pattern);
+                channel_manager_->PSubscribe(pattern, session);
+                subscribed_patterns.insert(pattern);
+            }
+
+            // 关键修复：在返回响应前切换到PubSub模式
+            session->SwitchMode(SessionMode::PubSubMode);// 添加这一行
+
+            // 构建并返回响应
+            return RespBuilder::PSubscribeResponse(
+                    subscribed_patterns,
+                    session->GetSubscribedPatterns().size());
+        }
+
+
+    private:
+        std::shared_ptr<apps::ChannelManager> channel_manager_;
+        std::weak_ptr<apps::Session> session_;
+    };
+
+    // 取消模式订阅命令：PUNSUBSCRIBE [pattern [pattern ...]]
+    class PUnsubscribeCommand : public ICommand {
+    public:
+        explicit PUnsubscribeCommand(
+                std::shared_ptr<apps::ChannelManager> channel_manager,
+                std::weak_ptr<apps::Session> session) : channel_manager_(std::move(channel_manager)),
+                                                        session_(std::move(session)) {}
+
+        std::string Execute(const std::vector<std::string> &argv) override {
+            auto session = session_.lock();
+            if (!session) {
+                return RespBuilder::Error("Session expired");
+            }
+
+            std::unordered_set<std::string> unsubscribed_patterns;
+            const auto &subscribed_patterns = session->GetSubscribedPatterns();// 调用接口获取
+
+            if (argv.size() < 2) {
+                // 无参数：取消所有模式订阅
+                unsubscribed_patterns = subscribed_patterns;
+                for (const auto &pattern: subscribed_patterns) {
+                    channel_manager_->PUnsubscribe(pattern, session);
+                }
+                session->ClearSubscribedPatterns();// 调用接口清空
+            } else {
+                // 取消指定模式
+                for (size_t i = 1; i < argv.size(); ++i) {
+                    const std::string &pattern = argv[i];
+                    if (subscribed_patterns.count(pattern)) {
+                        unsubscribed_patterns.insert(pattern);
+                        session->RemoveSubscribedPattern(pattern);// 调用接口移除
+                        channel_manager_->PUnsubscribe(pattern, session);
+                    }
+                }
+            }
+            if (session->GetSubscribedPatterns().empty() && session->GetSubscribedChannels().empty()) {
+                session->SwitchMode(SessionMode::CacheMode);
+            }
+            // 调用接口获取剩余订阅数
+            return RespBuilder::PUnsubscribeResponse(
+                    unsubscribed_patterns,
+                    session->GetSubscribedPatterns().size());
+        }
+
+    private:
+        std::shared_ptr<apps::ChannelManager> channel_manager_;
+        std::weak_ptr<apps::Session> session_;
+    };
+
+    class PubSubCommand : public ICommand {
+    public:
+        explicit PubSubCommand(std::shared_ptr<apps::ChannelManager> channel_manager)
+            : channel_manager_(std::move(channel_manager)) {}
+
+        std::string Execute(const std::vector<std::string> &argv) override {
+            if (argv.size() < 2) {
+                return RespBuilder::Error("PUBSUB requires a subcommand (CHANNELS, NUMSUB, NUMPAT, PATTERNS)");
+            }
+
+            const std::string &subcmd = argv[1];
+            if (subcmd == "CHANNELS") {
+                return HandleChannels(argv);
+            } else if (subcmd == "NUMSUB") {
+                return HandleNumSub(argv);
+            } else if (subcmd == "NUMPAT") {
+                return HandleNumPat();
+            } else if (subcmd == "PATTERNS") {// 新增：支持PATTERNS子命令
+                return HandlePatterns();
+            } else {
+                return RespBuilder::Error("Unknown PUBSUB subcommand: " + subcmd);
+            }
+        }
+
+    private:
+        // 处理 PUBSUB CHANNELS [pattern]
+        std::string HandleChannels(const std::vector<std::string> &argv) {
+            std::string pattern = "*";// 默认匹配所有频道
+            if (argv.size() >= 3) {
+                pattern = argv[2];
+            }
+
+            auto channels = channel_manager_->GetChannelsByPattern(pattern);
+            std::vector<std::string> elements;
+            for (const auto &channel: channels) {
+                elements.push_back(RespBuilder::BulkString(channel));
+            }
+            return RespBuilder::Array(elements);
+        }
+
+        // 处理 PUBSUB NUMSUB channel1 [channel2 ...]
+        std::string HandleNumSub(const std::vector<std::string> &argv) {
+            if (argv.size() < 3) {
+                return RespBuilder::Array({});// 无参数时返回空数组
+            }
+
+            std::vector<std::string> elements;
+            for (size_t i = 2; i < argv.size(); ++i) {
+                const std::string &channel = argv[i];
+                size_t count = channel_manager_->GetChannelSubscriberCount(channel);
+                elements.push_back(RespBuilder::BulkString(channel));
+                elements.push_back(RespBuilder::Integer(count));
+            }
+            return RespBuilder::Array(elements);
+        }
+
+        // 处理 PUBSUB NUMPAT
+        std::string HandleNumPat() {
+            size_t count = channel_manager_->GetPatternSubscriberCount();
+            return RespBuilder::Integer(count);
+        }
+
+        // 新增：处理 PUBSUB PATTERNS
+        std::string HandlePatterns() {
+            // 从ChannelManager获取所有活跃模式及订阅数
+            auto active_patterns = channel_manager_->GetActivePatterns();
+            std::vector<std::string> elements;
+
+            for (const auto &[pattern, count]: active_patterns) {
+                // 每个模式返回一个子数组：[模式名, 订阅数]
+                std::vector<std::string> sub_elements;
+                sub_elements.push_back(RespBuilder::BulkString(pattern));
+                sub_elements.push_back(RespBuilder::Integer(count));
+                elements.push_back(RespBuilder::Array(sub_elements));
+            }
+
+            return RespBuilder::Array(elements);
+        }
+
+    private:
+        std::shared_ptr<apps::ChannelManager> channel_manager_;
+    };
 }// namespace Astra::proto

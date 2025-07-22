@@ -1,4 +1,5 @@
 #include "WindowsTrayPlugin.h"
+#include "core/astra.hpp"
 
 #pragma comment(lib, "Msimg32.lib")
 #pragma comment(lib, "User32.lib")

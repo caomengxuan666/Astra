@@ -1,3 +1,4 @@
+#include "core/astra.hpp"
 // astra_client.cpp
 #include "astra_client.hpp"
 #include "sdk/commands.hpp"

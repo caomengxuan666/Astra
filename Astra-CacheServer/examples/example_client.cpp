@@ -1,3 +1,4 @@
+#include "core/astra.hpp"
 #include "sdk/astra_client.hpp"
 #include <iostream>
 #include <thread>
@@ -49,7 +50,7 @@ int main() {
         client.MSet({{"user:1000", "Alice"}, {"user:1001", "Bob"}});
         auto mget_result = client.MGet({"user:1000", "user:1001", "user:1002"});
         std::cout << "MGET results:" << std::endl;
-        for (const auto &item : mget_result.array) {
+        for (const auto &item: mget_result.array) {
             std::cout << item.str << std::endl;
         }
 

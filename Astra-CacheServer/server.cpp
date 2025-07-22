@@ -1,3 +1,4 @@
+#include "core/astra.hpp"
 #include "server/server_init.h"
 
 int main(int argc, char *argv[]) {

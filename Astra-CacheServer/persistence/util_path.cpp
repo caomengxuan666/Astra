@@ -1,4 +1,5 @@
 #include "util_path.hpp"
+#include "core/astra.hpp"
 #include <filesystem>
 #include <utils/logger.hpp>
 namespace fs = std::filesystem;

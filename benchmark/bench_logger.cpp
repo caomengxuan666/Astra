@@ -1,3 +1,4 @@
+#include "core/astra.hpp"
 #include "logger.hpp"
 #include <benchmark/benchmark.h>
 

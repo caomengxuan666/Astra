@@ -1,4 +1,5 @@
 #include "process.hpp"
+#include "core/astra.hpp"
 
 #include <windows.h>
 

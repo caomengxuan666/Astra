@@ -1,4 +1,5 @@
 #include "WindowsTrayPlugin.h"
+#include "core/astra.hpp"
 #include <string>
 #include <tchar.h>
 

@@ -95,7 +95,7 @@ namespace Astra::datastructures {
             return strategy_.Get(key);
         }
 
-        std::vector<std::optional<Value>> BatchGet(const std::vector<Key> &keys)  {
+        std::vector<std::optional<Value>> BatchGet(const std::vector<Key> &keys) {
             return strategy_.BatchGet(keys);
         }
 

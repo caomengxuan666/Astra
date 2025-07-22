@@ -7,13 +7,13 @@
 
 // Windows 平台导出/导入宏
 #ifdef _WIN32
-    #ifdef ZEN_DLL_EXPORT
-        #define ZEN_API __declspec(dllexport)
-    #else
-        #define ZEN_API __declspec(dllimport)
-    #endif
-    #define ZEN_CALL __stdcall
+#ifdef ZEN_DLL_EXPORT
+#define ZEN_API __declspec(dllexport)
 #else
-    #define ZEN_API
-    #define ZEN_CALL
+#define ZEN_API __declspec(dllimport)
+#endif
+#define ZEN_CALL __stdcall
+#else
+#define ZEN_API
+#define ZEN_CALL
 #endif

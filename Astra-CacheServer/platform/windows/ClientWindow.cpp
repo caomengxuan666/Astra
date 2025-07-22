@@ -1,4 +1,5 @@
 #include "ClientWindow.h"
+#include "core/astra.hpp"
 
 // 定义宽字符版本的箭头光标资源ID
 #ifndef IDC_ARROWW

@@ -1,6 +1,7 @@
 #include "astra_client.hpp"
 #include "astra_client_c.h"
 #include "astra_client_labview.h"
+#include "core/astra.hpp"
 #include <benchmark/benchmark.h>
 #include <hiredis/hiredis.h>
 #include <random>

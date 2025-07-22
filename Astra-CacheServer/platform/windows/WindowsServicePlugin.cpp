@@ -1,3 +1,4 @@
+#include "core/astra.hpp"
 #ifdef _WIN32
 #include "WindowsServicePlugin.h"
 #include "args.hxx"

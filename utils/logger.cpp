@@ -1,4 +1,5 @@
 #include "logger.hpp"
+#include "core/astra.hpp"
 #include "utf8_encode.h"
 #include <chrono>
 #include <ctime>
@@ -120,70 +121,70 @@ namespace Astra {
         }
     }
 
-void FileAppender::rollLogFileIfNeeded() {
-    if (current_file_size_ >= config_.max_file_size) {
-        // 关闭当前文件
-        {
-            std::lock_guard<std::mutex> lock(file_mutex_);
-            if (file_.is_open()) {
-                file_.flush();
-                file_.close();
+    void FileAppender::rollLogFileIfNeeded() {
+        if (current_file_size_ >= config_.max_file_size) {
+            // 关闭当前文件
+            {
+                std::lock_guard<std::mutex> lock(file_mutex_);
+                if (file_.is_open()) {
+                    file_.flush();
+                    file_.close();
+                }
             }
-        }
 
-        // 生成新文件名
-        current_file_index_++;
-        std::string old_name = current_file_name_;
-        std::string new_name = generateLogFileName(current_file_index_);
+            // 生成新文件名
+            current_file_index_++;
+            std::string old_name = current_file_name_;
+            std::string new_name = generateLogFileName(current_file_index_);
 
-        // 如果达到最大备份数，清理旧文件
-        if (current_file_index_ > static_cast<int>(config_.max_backup_files)) {
-            std::string oldest = generateLogFileName(1);
-            if (fs::exists(oldest)) {
-                fs::remove(oldest);
+            // 如果达到最大备份数，清理旧文件
+            if (current_file_index_ > static_cast<int>(config_.max_backup_files)) {
+                std::string oldest = generateLogFileName(1);
+                if (fs::exists(oldest)) {
+                    fs::remove(oldest);
+                }
+                current_file_index_ = config_.max_backup_files;
+                new_name = generateLogFileName(current_file_index_);
             }
-            current_file_index_ = config_.max_backup_files;
-            new_name = generateLogFileName(current_file_index_);
-        }
 
-        // 从后往前重命名旧日志文件
-        for (int i = static_cast<int>(config_.max_backup_files); i > 1; --i) {
-            std::string src = generateLogFileName(i - 1);
-            std::string dst = generateLogFileName(i);
-            if (fs::exists(src)) {
+            // 从后往前重命名旧日志文件
+            for (int i = static_cast<int>(config_.max_backup_files); i > 1; --i) {
+                std::string src = generateLogFileName(i - 1);
+                std::string dst = generateLogFileName(i);
+                if (fs::exists(src)) {
+                    if (fs::exists(dst)) {
+                        fs::remove(dst);// 删除目标文件（如果存在）
+                    }
+                    fs::rename(src, dst);// 移动文件
+                }
+            }
+
+            // 重命名当前日志文件为 1.log
+            {
+                std::lock_guard<std::mutex> lock(file_name_mutex_);
+                std::string dst = generateLogFileName(1);
                 if (fs::exists(dst)) {
-                    fs::remove(dst);  // 删除目标文件（如果存在）
+                    fs::remove(dst);// 删除已存在的备份
                 }
-                fs::rename(src, dst);  // 移动文件
-            }
-        }
-
-        // 重命名当前日志文件为 1.log
-        {
-            std::lock_guard<std::mutex> lock(file_name_mutex_);
-            std::string dst = generateLogFileName(1);
-            if (fs::exists(dst)) {
-                fs::remove(dst);  // 删除已存在的备份
-            }
-            if (fs::exists(old_name)) {
-                try {
-                    fs::rename(old_name, dst);
-                } catch (const fs::filesystem_error &e) {
-                    ZEN_LOG_ERROR("Failed to rename log file: {}", e.what());
+                if (fs::exists(old_name)) {
+                    try {
+                        fs::rename(old_name, dst);
+                    } catch (const fs::filesystem_error &e) {
+                        ZEN_LOG_ERROR("Failed to rename log file: {}", e.what());
+                    }
                 }
             }
-        }
 
-        // 重新打开日志文件
-        current_file_name_ = generateLogFileName();
-        file_.open(current_file_name_, std::ios::app | std::ios::binary);
-        if (!file_.is_open()) {
-            ZEN_LOG_ERROR("Failed to reopen log file: {}", current_file_name_);
-        } else {
-            current_file_size_ = 0;
+            // 重新打开日志文件
+            current_file_name_ = generateLogFileName();
+            file_.open(current_file_name_, std::ios::app | std::ios::binary);
+            if (!file_.is_open()) {
+                ZEN_LOG_ERROR("Failed to reopen log file: {}", current_file_name_);
+            } else {
+                current_file_size_ = 0;
+            }
         }
     }
-}
 
     std::string FileAppender::generateLogFileName(int index) const {
         std::stringstream ss;
@@ -621,7 +622,7 @@ void FileAppender::rollLogFileIfNeeded() {
                                safe_level,
                                safe_message);
 
-                    #elif
+#elif
                     // 其他平台都不用管
                     fmt::print("[{}] [{}] {}\n",
                                entry.timestamp,
