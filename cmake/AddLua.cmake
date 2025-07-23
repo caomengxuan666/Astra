@@ -11,7 +11,7 @@ AddLua
 # 确保Lua子模块已添加
 if(NOT EXISTS "${PROJECT_SOURCE_DIR}/third-party/lua/CMakeLists.txt")
     message(FATAL_ERROR "未找到Lua配置文件，请确保已通过git submodule添加Lua:
-    git submodule add https://github.com/lua/lua.git third-party/lua
+    git submodule add https://github.com/caomengxuan666/lua.git third-party/lua
     git submodule update --init --recursive")
 endif()
 
