@@ -9,10 +9,10 @@ set(SERVER_SOURCE
         server.cpp
         server/ChannelManager.cpp
         server/session.cpp
+        server/status_collector.cpp
         persistence/util_path.cpp 
         persistence/process.cpp
 )
-
 # WINDOWS 平台特有的文件
 set(WIN_SOURCE
         platform/windows/WindowsServicePlugin.cpp
@@ -27,6 +27,7 @@ add_executable(Astra-CacheServer ${SERVER_SOURCE} ${WIN_SOURCE})
 else()
 add_executable(Astra-CacheServer ${SERVER_SOURCE})
 endif()
+add_lua_support(Astra-CacheServer)
 target_compile_definitions(Astra-CacheServer PRIVATE FMT_DISABLE_UTF8=1)
 #target_link_libraries(Astra-CacheServer zenutils)
 

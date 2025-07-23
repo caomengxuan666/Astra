@@ -5,10 +5,12 @@
 #include "command_parser.hpp"
 #include "resp_builder.hpp"
 #include "server/ChannelManager.hpp"
+#include "server/server_status.h"
 #include "server/session.hpp"
 #include <chrono>
 #include <datastructures/lru_cache.hpp>
 #include <memory>
+
 
 namespace Astra::proto {
     using namespace datastructures;
@@ -121,27 +123,104 @@ namespace Astra::proto {
         }
     };
 
-    // 重构INFO命令使用RespBuilder
     class InfoCommand : public ICommand {
     public:
         InfoCommand() = default;
 
         std::string Execute(const std::vector<std::string> &argv) override {
-            std::string info =
-                    "# Server\r\n"
-                    "redis_version:6.0.9\r\n"
-                    "os:linux\r\n"
-                    "arch_bits:64\r\n"
-                    "process_id:12345\r\n"
-                    "uptime_in_seconds:3600\r\n"
-                    "uptime_in_days:0\r\n"
-                    "# Clients\r\n"
-                    "connected_clients:1\r\n"
-                    "# Memory\r\n"
-                    "used_memory:1024000\r\n"
-                    "# Stats\r\n"
-                    "total_commands_processed:1000\r\n"
-                    "total_connections_received:10\r\n";
+            // 获取服务器状态实例
+            const auto &status = ServerStatusInstance::GetInstance()->getStatus();
+
+            // 构建信息字符串，使用toCsr系列函数进行类型转换
+            std::string info;
+            info += "# Server\r\n";
+            info += "server_name:";
+            info += status.toCsr(status.server_name);
+            info += "\r\n";
+            info += "redis_version:";
+            info += status.toCsr(status.version);
+            info += "\r\n";
+            info += "version_sha1:";
+            info += status.toCsr(status.version_sha1);
+            info += "\r\n";
+            info += "build_id:";
+            info += status.toCsr(status.build_id);
+            info += "\r\n";
+            info += "mode:";
+            info += status.toCsr(status.mode);
+            info += "\r\n";
+            info += "os:";
+            info += status.toCsr(status.os);
+            info += "\r\n";
+            info += "arch_bits:";
+            info += status.toCsr(status.arch_bits);
+            info += "\r\n";
+            info += "process_id:";
+            info += status.toCsr(status.process_id);
+            info += "\r\n";
+            info += "compiler_version:";
+            info += status.toCsr(status.Compiler_version);
+            info += "\r\n";
+            info += "run_id:";
+            info += status.toCsr(status.run_id);
+            info += "\r\n";
+            info += "tcp_port:";
+            info += status.toCsr(status.tcp_port);
+            info += "\r\n";
+            info += "executable:";
+            info += status.toCsr(status.executable);
+            info += "\r\n";
+            info += "config_file:";
+            info += status.toCsr(status.config_file);
+            info += "\r\n";
+            info += "uptime_in_seconds:";
+            info += status.toCsr(status.uptime_in_seconds);
+            info += "\r\n";
+            info += "uptime_in_days:";
+            info += status.toCsr(status.uptime_in_days);
+            info += "\r\n";
+
+            info += "# Clients\r\n";
+            info += "connected_clients:";
+            info += status.toCsr(status.connected_clients);
+            info += "\r\n";
+
+            info += "# Memory\r\n";
+            info += "used_memory:";
+            info += status.toCsr(status.used_memory);
+            info += "\r\n";
+            info += "used_memory_human:";
+            info += status.toCsr(status.used_memory_human);
+            info += "\r\n";
+            info += "used_memory_rss:";
+            info += status.toCsr(status.used_memory_rss);
+            info += "\r\n";
+            info += "used_memory_rss_human:";
+            info += status.toCsr(status.used_memory_rss_human);
+            info += "\r\n";
+
+            info += "# Stats\r\n";
+            info += "total_connections_received:";
+            info += status.toCsr(status.total_connections_received);
+            info += "\r\n";
+            info += "total_commands_processed:";
+            info += status.toCsr(status.total_commands_processed);
+            info += "\r\n";
+
+            info += "# CPU\r\n";
+            info += "used_cpu_sys:";
+            info += status.toCsr(status.used_cpu_sys);
+            info += "\r\n";
+            info += "used_cpu_user:";
+            info += status.toCsr(status.used_cpu_user);
+            info += "\r\n";
+            info += "used_cpu_sys_children:";
+            info += status.toCsr(status.used_cpu_sys_children);
+            info += "\r\n";
+            info += "used_cpu_user_children:";
+            info += status.toCsr(status.used_cpu_user_children);
+            info += "\r\n";
+
             return Astra::proto::RespBuilder::BulkString(info);
         }
     };
@@ -587,18 +666,19 @@ namespace Astra::proto {
             if (argv.size() < 2) {
                 return RespBuilder::Error("PUBSUB requires a subcommand (CHANNELS, NUMSUB, NUMPAT, PATTERNS)");
             }
+            const std::string &subcmd = argv[1];// 获取子命令 (e.g., "channels", "CHANNELS")
 
-            const std::string &subcmd = argv[1];
-            if (subcmd == "CHANNELS") {
+            if (ICaseCmp(subcmd, "CHANNELS")) {
                 return HandleChannels(argv);
-            } else if (subcmd == "NUMSUB") {
+            } else if (ICaseCmp(subcmd, "NUMSUB")) {
                 return HandleNumSub(argv);
-            } else if (subcmd == "NUMPAT") {
+            } else if (ICaseCmp(subcmd, "NUMPAT")) {
                 return HandleNumPat();
-            } else if (subcmd == "PATTERNS") {// 新增：支持PATTERNS子命令
+            } else if (ICaseCmp(subcmd, "PATTERNS")) {
                 return HandlePatterns();
             } else {
-                return RespBuilder::Error("Unknown PUBSUB subcommand: " + subcmd);
+                // 使用原始的 argv[1] 以便在错误信息中显示用户实际输入的内容
+                return RespBuilder::Error("Unknown PUBSUB subcommand: " + argv[1]);
             }
         }
 

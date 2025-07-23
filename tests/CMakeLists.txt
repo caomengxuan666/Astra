@@ -6,6 +6,8 @@ find_package(GTest CONFIG REQUIRED)
 # 加载自定义宏
 include(${PROJECT_SOURCE_DIR}/cmake/SetupTarget.cmake)
 
+include_directories(${PROJECT_SOURCE_DIR}/Astra-CacheServer)
+
 # 收集所有 test_xxx.cpp 文件
 file(GLOB TEST_SOURCES "test_*.cpp")
 
@@ -22,6 +24,7 @@ foreach(TEST_SOURCE ${TEST_SOURCES})
     # 单独链接 GTest（setup_target 可能不包含它）
     target_link_libraries(${TEST_NAME} PRIVATE GTest::gtest GTest::gtest_main)
 
+    add_lua_support(${TEST_NAME})
     # 注册到 CTest
     add_test(NAME ${TEST_NAME}
              COMMAND ${TEST_NAME}

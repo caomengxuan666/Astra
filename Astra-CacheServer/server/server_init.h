@@ -4,19 +4,19 @@
 
 #ifndef SERVER_INIT_H
 #define SERVER_INIT_H
-
-#include "args.hxx"
-#include "core/astra.hpp"
+#include "config/ConfigManager.h"
 #include "fmt/color.h"
 #include "network/io_context_pool.hpp"
 #include "persistence/process.hpp"
-#include "persistence/util_path.hpp"
-#include "server/server.hpp"
+#include "server.hpp"
+#include "server/status_collector.h"
 #include "utils/logger.hpp"
 #include <asio/io_context.hpp>
 #include <asio/signal_set.hpp>
 #include <cstdlib>
 #include <memory>
+#include <string>
+
 
 // 仅在Windows平台包含插件头文件
 #ifdef _WIN32
@@ -24,61 +24,13 @@
 #endif
 
 using namespace Astra;
-using namespace Astra::utils;
-using namespace Astra::Persistence;
 
 static constexpr size_t MAXLRUSIZE = std::numeric_limits<size_t>::max();
 
-// 用于创建独立进程的函数示例
-inline static bool StartTrayProcess(const std::wstring &executablePath) {
-    STARTUPINFOW si = {0};// 使用宽字符版本的STARTUPINFO
-    PROCESS_INFORMATION pi = {0};
-    si.cb = sizeof(STARTUPINFOW);
-
-    // 创建独立进程，使用宽字符版本CreateProcessW
-    BOOL success = CreateProcessW(
-            executablePath.c_str(),// 应用程序路径（宽字符）
-            NULL,                  // 命令行参数
-            NULL,                  // 进程安全属性
-            NULL,                  // 线程安全属性
-            FALSE,                 // 继承句柄
-            0,                     // 创建标志
-            NULL,                  // 环境变量
-            NULL,                  // 当前目录
-            &si,                   // 启动信息（宽字符版本）
-            &pi                    // 进程信息
-    );
-
-    if (success) {
-        // 关闭进程和线程句柄
-        CloseHandle(pi.hProcess);
-        CloseHandle(pi.hThread);
-        return true;
-    }
-
-    return false;
-}
-
-// 日志级别解析
-inline static Astra::LogLevel parseLogLevel(const std::string &levelStr) {
-    static const std::unordered_map<std::string, Astra::LogLevel> levels = {
-            {"trace", Astra::LogLevel::TRACE},
-            {"debug", Astra::LogLevel::DEBUG},
-            {"info", Astra::LogLevel::INFO},
-            {"warn", Astra::LogLevel::WARN},
-            {"error", Astra::LogLevel::ERR},
-            {"fatal", Astra::LogLevel::FATAL}};
-
-    auto it = levels.find(levelStr);
-    if (it != levels.end()) {
-        return it->second;
-    }
-    throw std::invalid_argument("Invalid log level: " + levelStr);
-}
 
 // 控制台LOGO输出
 inline static void writeLogoToConsole(int port, size_t maxLRUSize, const std::string &persistenceFile) noexcept {
-    std::string pid = get_pid_str();
+    std::string pid = Astra::persistence::get_pid_str();
     auto timeStr = Astra::Logger::GetInstance().GetTimestamp();
 
     fmt::print(fg(fmt::color::light_yellow),
@@ -139,52 +91,30 @@ inline static void writeLogoToConsole(int port, size_t maxLRUSize, const std::st
                "{}:M {} * Initializing server...\n", pid, timeStr);
 }
 
+inline static void initServerStatus() {
+    auto status_collector = Astra::apps::StatusCollector::GetInstance();
+    status_collector->start();
+}
+
 // 服务器启动核心逻辑（非服务模式）
 inline int startServer(int argc, char *argv[]) noexcept {
-    // 获取用户主目录
-    fs::path homeDir;
-    const char *homeEnv = Astra::utils::getEnv();
-    if (homeEnv) {
-        homeDir = homeEnv;
-    } else {
-        homeDir = fs::current_path();
-        ZEN_LOG_WARN("无法获取用户主目录，使用当前目录: {}", homeDir.string());
+    // 初始化配置管理器（单例）
+    auto config_manager = apps::ConfigManager::GetInstance();
+    if (!config_manager->initialize(argc, argv)) {
+        return 1;// 配置解析失败
     }
 
-    // 构建持久化文件路径
-    fs::path dumpFilePath = homeDir / ".astra" / "cache_dump.rdb";
+    // 通过配置管理器获取参数
+    uint16_t listening_port = config_manager->getListeningPort();
+    size_t max_lru_size = config_manager->getMaxLRUSize();
+    std::string persistence_file = config_manager->getPersistenceFileName();
 
-    // 解析命令行参数
-    args::ArgumentParser parser("Astra-Cache Server", "A Redis-compatible Astra Cache server.");
-    args::ValueFlag<int> port(parser, "port", "Port number to listen on", {'p', "port"}, 6380);
-    args::ValueFlag<std::string> logLevelStr(parser, "level", "Log level: trace, debug, info, warn, error, fatal",
-                                             {'l', "loglevel"}, "info");
-    args::ValueFlag<std::string> coreDump(parser, "filename", "Core dump file name", {'c', "coredump"},
-                                          dumpFilePath.string());
-    args::ValueFlag<size_t> maxLRUSize(parser, "size", "Maximum size of LRU cache", {'m', "maxsize"}, MAXLRUSIZE);
-    args::ValueFlag<bool> enableLoggingFileFlag(parser, "enable", "Enable logging to file", {'f', "file"}, false);
-
-    try {
-        parser.ParseCLI(argc, argv);
-    } catch (const args::Help &) {
-        std::cout << parser;
-        return 0;
-    } catch (const args::ParseError &e) {
-        std::cerr << e.what() << std::endl;
-        std::cerr << parser;
-        return 1;
-    }
-
-    // 提取参数值
-    int listeningPort = args::get(port);
-    std::string logLevelRaw = args::get(logLevelStr);
-    std::string persistence_file_name = args::get(coreDump);
-    size_t lru_max_size = args::get(maxLRUSize);
-    bool enableLoggingFile = args::get(enableLoggingFileFlag);
+    // 初始化服务器状态收集器
+    initServerStatus();
 
     // 设置日志级别
     try {
-        Astra::LogLevel level = parseLogLevel(logLevelRaw);
+        Astra::LogLevel level = config_manager->getLogLevel();
         ZEN_SET_LEVEL(level);
     } catch (const std::invalid_argument &e) {
         std::cerr << e.what() << std::endl;
@@ -192,13 +122,15 @@ inline int startServer(int argc, char *argv[]) noexcept {
     }
 
     // 设置日志文件输出
-    if (enableLoggingFile) {
+    if (config_manager->getEnableLoggingFile()) {
         auto &logger = Astra::Logger::GetInstance();
         auto fileAppender = std::make_shared<Astra::SyncFileAppender>(logger.GetDefaultLogDir());
         logger.AddAppender(fileAppender);
     }
 
-    writeLogoToConsole(listeningPort, lru_max_size, persistence_file_name);
+
+    // 打印LOGO
+    writeLogoToConsole(listening_port, max_lru_size, persistence_file);
 
     try {
         // 创建IO线程池
@@ -207,7 +139,8 @@ inline int startServer(int argc, char *argv[]) noexcept {
         asio::signal_set signals(io_context, SIGINT, SIGTERM);
 
         // 创建服务器实例
-        auto server = std::make_shared<Astra::apps::AstraCacheServer>(io_context, lru_max_size, persistence_file_name);
+        auto server = std::make_shared<Astra::apps::AstraCacheServer>(
+                io_context, max_lru_size, persistence_file);
         server->setEnablePersistence(false);
 
         // 信号处理
@@ -217,14 +150,13 @@ inline int startServer(int argc, char *argv[]) noexcept {
                 ZEN_LOG_INFO("Shutting down server...");
                 server->Stop();
             }
-
             ZEN_LOG_INFO("Stopping IO context pool...");
             std::quick_exit(0);
         });
 
-        // 启动服务器
-        server->Start(listeningPort);
-        ZEN_LOG_INFO("Astra-CacheServer started on port {}", listeningPort);
+        // 启动服务器（使用配置的端口）
+        server->Start(listening_port);
+        ZEN_LOG_INFO("Astra-CacheServer started on port {}", listening_port);
 
         // 运行IO上下文
         io_context.run();

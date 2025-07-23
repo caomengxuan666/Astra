@@ -1,1 +1,1 @@
-add_library(zenutils logger.hpp logger.cpp scope_guard.hpp)
+add_library(zenutils logger.hpp logger.cpp uuid_utils.cpp)

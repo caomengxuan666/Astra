@@ -6,7 +6,9 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <unordered_map>
 #include <vector>
+
 #define FMT_HEADER_ONLY
 #include <fmt/color.h>
 #include <fmt/format.h>
@@ -181,35 +183,35 @@ namespace Astra {
         // 新增：获取当前时间戳（从缓存）
         static std::string GetTimestamp();
 
-        // 日志输出模板函数
         template<typename... Args>
         void Trace(const std::string &fmt, Args &&...args) {
-            Log(LogLevel::TRACE, fmt::format(fmt, std::forward<Args>(args)...));
+            // 使用 fmt::runtime 明确指示 fmt 是运行时格式字符串
+            Log(LogLevel::TRACE, fmt::format(fmt::runtime(fmt), std::forward<Args>(args)...));
         }
 
         template<typename... Args>
         void Debug(const std::string &fmt, Args &&...args) {
-            Log(LogLevel::DEBUG, fmt::format(fmt, std::forward<Args>(args)...));
+            Log(LogLevel::DEBUG, fmt::format(fmt::runtime(fmt), std::forward<Args>(args)...));
         }
 
         template<typename... Args>
         void Info(const std::string &fmt, Args &&...args) {
-            Log(LogLevel::INFO, fmt::format(fmt, std::forward<Args>(args)...));
+            Log(LogLevel::INFO, fmt::format(fmt::runtime(fmt), std::forward<Args>(args)...));
         }
 
         template<typename... Args>
         void Warn(const std::string &fmt, Args &&...args) {
-            Log(LogLevel::WARN, fmt::format(fmt, std::forward<Args>(args)...));
+            Log(LogLevel::WARN, fmt::format(fmt::runtime(fmt), std::forward<Args>(args)...));
         }
 
         template<typename... Args>
         void Error(const std::string &fmt, Args &&...args) {
-            Log(LogLevel::ERR, fmt::format(fmt, std::forward<Args>(args)...));
+            Log(LogLevel::ERR, fmt::format(fmt::runtime(fmt), std::forward<Args>(args)...));
         }
 
         template<typename... Args>
         void Fatal(const std::string &fmt, Args &&...args) {
-            Log(LogLevel::FATAL, fmt::format(fmt, std::forward<Args>(args)...));
+            Log(LogLevel::FATAL, fmt::format(fmt::runtime(fmt), std::forward<Args>(args)...));
         }
 
     private:
@@ -240,3 +242,19 @@ namespace Astra {
 #define ZEN_LOG_ERROR(...) Astra::Logger::GetInstance().Error(__VA_ARGS__)
 #define ZEN_LOG_FATAL(...) Astra::Logger::GetInstance().Fatal(__VA_ARGS__)
 #define ZEN_SET_LEVEL(level) Astra::Logger::GetInstance().SetLevel(level)
+
+inline static Astra::LogLevel parseLogLevel(const std::string &levelStr) {
+    static const std::unordered_map<std::string, Astra::LogLevel> levels = {
+            {"trace", Astra::LogLevel::TRACE},
+            {"debug", Astra::LogLevel::DEBUG},
+            {"info", Astra::LogLevel::INFO},
+            {"warn", Astra::LogLevel::WARN},
+            {"error", Astra::LogLevel::ERR},
+            {"fatal", Astra::LogLevel::FATAL}};
+
+    auto it = levels.find(levelStr);
+    if (it != levels.end()) {
+        return it->second;
+    }
+    throw std::invalid_argument("Invalid log level: " + levelStr);
+}

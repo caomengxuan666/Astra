@@ -1,17 +1,19 @@
 #include "core/astra.hpp"
+#include "server/status_collector.h"
 #ifdef _WIN32
 #include "WindowsServicePlugin.h"
-#include "args.hxx"
+
 #include "network/io_context_pool.hpp"
 #include "persistence/util_path.hpp"
 #include "server/server.hpp"
+#include "server/server_init.h"
 #include "utils/logger.hpp"
 #include <asio/io_context.hpp>
 #include <asio/signal_set.hpp>
-#include <cstdlib>
 #include <filesystem>
 #include <memory>
 #include <shellapi.h>
+
 
 // 定义Unicode宏（使用宽字符版本API）
 #ifndef _T
@@ -29,24 +31,6 @@ static std::shared_ptr<Astra::apps::AstraCacheServer> g_server;
 static SERVICE_STATUS g_serviceStatus;
 static SERVICE_STATUS_HANDLE g_serviceStatusHandle;
 
-static constexpr size_t MAXLRUSIZE = std::numeric_limits<size_t>::max();
-
-// 日志级别解析函数
-inline static Astra::LogLevel parseLogLevel(const std::string &levelStr) {
-    static const std::unordered_map<std::string, Astra::LogLevel> levels = {
-            {"trace", Astra::LogLevel::TRACE},
-            {"debug", Astra::LogLevel::DEBUG},
-            {"info", Astra::LogLevel::INFO},
-            {"warn", Astra::LogLevel::WARN},
-            {"error", Astra::LogLevel::ERR},
-            {"fatal", Astra::LogLevel::FATAL}};
-
-    auto it = levels.find(levelStr);
-    if (it != levels.end()) {
-        return it->second;
-    }
-    throw std::invalid_argument("Invalid log level: " + levelStr);
-}
 
 // 设置服务状态
 void SetServiceStatus(DWORD dwCurrentState, DWORD dwWin32ExitCode, DWORD dwWaitHint) {
@@ -100,59 +84,70 @@ void WINAPI ServiceCtrlHandler(DWORD dwCtrl) {
 }
 
 // 服务模式下启动服务器
+// 服务模式下启动服务器
 void StartServerInServiceMode(int argc, char *argv[]) {
-    std::vector<char *> filteredArgs;
-    filteredArgs.push_back(argv[0]);// 保留程序名
-    for (int i = 1; i < argc; ++i) {
-        if (std::string(argv[i]) != "--service") {// 跳过--service
-            filteredArgs.push_back(argv[i]);
-        }
-    }
-    int filteredArgc = filteredArgs.size();
-    // 获取用户主目录
-    std::filesystem::path homeDir;
-    if (const char *homeEnv = Astra::utils::getEnv()) {
-        homeDir = homeEnv;
-    } else {
-        homeDir = std::filesystem::current_path();
-        ZEN_LOG_WARN("无法获取用户主目录，使用当前目录: {}", homeDir.string());
+    // 1. 初始化ConfigManager（服务模式专用）
+    auto config_manager = apps::ConfigManager::GetInstance();
+    if (!config_manager->initializeForService(argc, argv)) {
+        ZEN_LOG_ERROR("服务模式配置初始化失败");
+        throw std::runtime_error("Service config init failed");
     }
 
-    // 参数解析（同主程序）
-    args::ArgumentParser parser("Astra缓存服务", "兼容Redis的Astra缓存服务器");
-    args::ValueFlag<int> port(parser, "port", "监听端口", {'p', "port"}, 6380);
-    args::ValueFlag<std::string> logLevelStr(parser, "level", "日志级别", {'l', "loglevel"}, "info");
-    args::ValueFlag<std::string> dumpFile(parser, "filename", "持久化文件", {'d', "dumpfile"}, (homeDir / ".astra" / "cache_dump.rdb").string());
-    args::ValueFlag<size_t> maxSize(parser, "size", "最大缓存大小", {'m', "maxsize"}, MAXLRUSIZE);
-    args::ValueFlag<bool> enableLoggingFileFlag(parser, "enable", "启用文件日志", {'f', "file"}, false);
-
-
+    // 2. 安全获取配置参数
+    uint16_t listening_port = 0;
+    size_t max_lru_size = 0;
+    std::string persistence_file;
     try {
-        parser.ParseCLI(filteredArgc, filteredArgs.data());
+        listening_port = config_manager->getListeningPort();
+        max_lru_size = config_manager->getMaxLRUSize();
+        persistence_file = config_manager->getPersistenceFileName();
+    } catch (const std::exception &e) {
+        ZEN_LOG_ERROR("配置获取失败: {}", e.what());
+        listening_port = 6380;// 默认端口
+        max_lru_size = std::numeric_limits<size_t>::max();
+        persistence_file = "";
+    }
 
-        bool enableLoggingFile = args::get(enableLoggingFileFlag);
-        // 设置日志文件输出
-        if (enableLoggingFile) {
-            auto &logger = Astra::Logger::GetInstance();
+    // 3. 初始化日志系统
+    try {
+        auto &logger = Astra::Logger::GetInstance();
+        if (config_manager->getEnableLoggingFile()) {
             auto fileAppender = std::make_shared<Astra::SyncFileAppender>(logger.GetDefaultLogDir());
             logger.AddAppender(fileAppender);
         }
-        // 初始化服务器
+        ZEN_SET_LEVEL(config_manager->getLogLevel());
+    } catch (...) {
+        ZEN_LOG_ERROR("日志系统初始化失败，继续运行...");
+    }
+
+    // 4. 启动状态收集器（安全模式）
+    if (auto collector = apps::StatusCollector::GetInstance()) {
+        try {
+            collector->start();
+        } catch (const std::exception &e) {
+            ZEN_LOG_ERROR("状态收集器启动失败: {}", e.what());
+        }
+    }
+
+    // 5. 启动服务器核心
+    try {
         auto pool = AsioIOServicePool::GetInstance();
         asio::io_context &io_context = pool->GetIOService();
 
         g_server = std::make_shared<Astra::apps::AstraCacheServer>(
                 io_context,
-                args::get(maxSize),
-                args::get(dumpFile));
+                max_lru_size,
+                persistence_file);
+
         g_server->setEnablePersistence(false);
+        g_server->Start(listening_port);
 
-        g_server->Start(args::get(port));
-        ZEN_LOG_INFO("服务已启动，监听端口: {}", args::get(port));
+        ZEN_LOG_INFO("服务已启动，监听端口: {}", listening_port);
+        ZEN_LOG_INFO("LRU最大尺寸: {}", max_lru_size);
+        ZEN_LOG_INFO("持久化文件: {}", persistence_file.empty() ? "无" : persistence_file);
 
-        //io_context.run();
     } catch (const std::exception &e) {
-        ZEN_LOG_ERROR("服务启动失败: {}", e.what());
+        ZEN_LOG_ERROR("服务器启动失败: {}", e.what());
         throw;
     }
 }
@@ -235,7 +230,6 @@ bool WindowsServicePlugin::install(const std::string &exePath, const std::vector
 
     CloseServiceHandle(service);
     CloseServiceHandle(scm);
-    ZEN_LOG_INFO("服务安装成功");
     return true;
 }
 

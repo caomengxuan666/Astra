@@ -1,0 +1,35 @@
+// 自动生成的版本与系统信息头文件，请勿手动修改
+#ifndef ASTRA_VERSION_INFO_H
+#define ASTRA_VERSION_INFO_H
+
+// 1. 基础版本号（主版本.次版本.补丁版本.修订版本）
+#define ASTRA_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+#define ASTRA_VERSION_MINOR @PROJECT_VERSION_MINOR@
+#define ASTRA_VERSION_PATCH @PROJECT_VERSION_PATCH@
+#define ASTRA_VERSION_TWEAK @PROJECT_VERSION_TWEAK@
+
+// 完整版本字符串（如 "0.1.0" 或 "0.1.0.1"）
+#define ASTRA_VERSION "@PROJECT_VERSION@"
+
+// 2. Git 提交信息
+#define ASTRA_VERSION_SHA1 "@ASTRA_VERSION_SHA1@"  // Git提交短哈希
+
+// 3. 构建信息
+#define ASTRA_BUILD_ID "@ASTRA_BUILD_ID@"          // 唯一构建ID（时间戳+随机数）
+#define ASTRA_BUILD_MODE "@CMAKE_BUILD_TYPE@"      // 构建模式（Release/Debug）
+#define ASTRA_BUILD_TIMESTAMP "@ASTRA_BUILD_TIMESTAMP@"  // 构建时间
+
+// 4. 系统与架构信息
+#define ASTRA_OS "@CMAKE_SYSTEM_NAME@"             // 操作系统（如Windows/Linux）
+#define ASTRA_ARCH_BITS "@ASTRA_ARCH_BITS@"        // 架构位数（32/64）
+#define ASTRA_COMPILER "@CMAKE_CXX_COMPILER_ID@ @CMAKE_CXX_COMPILER_VERSION@"  // 编译器版本
+
+// 5. 版本号整数（用于版本比较）
+#define ASTRA_VERSION_HEX ( \
+    (ASTRA_VERSION_MAJOR << 24) | \
+    (ASTRA_VERSION_MINOR << 16) | \
+    (ASTRA_VERSION_PATCH << 8) | \
+    ASTRA_VERSION_TWEAK \
+)
+
+#endif // ASTRA_VERSION_INFO_H

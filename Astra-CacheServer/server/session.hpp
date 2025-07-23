@@ -105,6 +105,7 @@ namespace Astra::apps {
         datastructures::LockFreeQueue<PubSubMessage, 4096, datastructures::OverflowPolicy::RESIZE> msg_queue_;
         std::atomic_bool is_writing_;
         std::shared_ptr<ChannelManager> channel_manager_;
+        std::string session_id_;
 
         // 私有成员函数声明
 

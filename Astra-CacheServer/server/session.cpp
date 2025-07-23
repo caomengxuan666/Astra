@@ -5,7 +5,7 @@
 #include "proto/resp_builder.hpp"
 #include <asio/post.hpp>
 #include <fmt/format.h>
-
+#include <utils/uuid_utils.h>
 
 namespace Astra::apps {
 
@@ -24,7 +24,23 @@ namespace Astra::apps {
                                                                      parse_state_(ParseState::ReadingArrayHeader),
                                                                      remaining_args_(0),
                                                                      current_bulk_size_(0),
-                                                                     is_writing_(false) {}
+                                                                     is_writing_(false) {
+        // 使用UUID工具类生成session_id_
+        auto generator = Astra::utils::UuidUtils::GetInstance().get_generator();
+
+        if (generator != nullptr) [[likely]] {
+            session_id_ = generator->generate();// 正常路径：使用对象池中的生成器
+        } else {
+            // 降级方案：极端情况下的备选逻辑（大概率不执行）
+            static std::mt19937_64 fallback_rng(std::random_device{}());
+            auto timestamp = std::chrono::system_clock::now().time_since_epoch().count();
+            session_id_ = std::to_string(timestamp) + "_" + std::to_string(fallback_rng());
+        }
+
+
+        // 发送连接建立事件（使用生成的session_id_）
+        stats::emitConnectionOpened(session_id_);
+    }
 
     Session::~Session() {
         ZEN_LOG_DEBUG("Session destroyed, cleaning up subscriptions");
@@ -40,6 +56,9 @@ namespace Astra::apps {
             channel_manager_->PUnsubscribe(pattern, shared_from_this());
         }
         subscribed_patterns_.clear();
+
+        //  发送连接关闭事件
+        stats::emitConnectionClosed(session_id_);
 
         ZEN_LOG_DEBUG("All subscriptions cleaned up");
     }
