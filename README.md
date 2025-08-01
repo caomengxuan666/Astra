@@ -7,15 +7,20 @@
 Astra 是一个基于 C++17 的高性能 Redis 兼容缓存中间件，采用模块化设计实现以下核心价值：
 - 提供线程安全的 LRU 缓存实现
 - 支持 Redis 协议的网络通信
-- 实现命令模式的客户端 SDK，包含C++ SDK CSDK LabViewSDK,兼容hiredis 库
+- 实现命令模式的客户端 SDK，包含C++ SDK、C SDK、LabView SDK，兼容hiredis 库
 - 支持 TTL 过期机制与后台清理
 - 在Windows下支持服务模式启动
+- 支供发布/订阅模式和Lua脚本执行
 - 支持rdb快照保存和恢复
 
 ## 项目截图
 
 ![alt text](snapshots/{734A5CB7-AED1-4D02-BFF0-50F80F7A0A6F}.png)
 
+### 项目统计
+- [代码统计报告](code_stats_reports/report.html) - 详细代码行数、文件数量等统计信息
+- [交互式图表](code_stats_reports/interactive_chart.html) - 可交互的代码统计图表
+![语言统计](code_stats_reports/bar_chart.png)
 
 ### 核心模块
 | 模块 | 功能 | 技术实现 |
@@ -26,6 +31,26 @@ Astra 是一个基于 C++17 的高性能 Redis 兼容缓存中间件，采用模
 | **concurrent** | 并发支持框架 | 线程池/任务队列/任务流
 | **CacheServer** | Redis 协议解析 | Asio 异步 IO
 | **Client SDK** | 命令模式封装 | 多态设计
+
+### 支持的Redis命令
+
+#### 键值命令
+- GET, SET, DEL, EXISTS, KEYS, TTL, MGET, MSET
+
+#### 数值命令
+- INCR, DECR
+
+#### 连接命令
+- PING
+
+#### 服务命令
+- COMMAND, INFO
+
+#### 发布/订阅命令
+- SUBSCRIBE, UNSUBSCRIBE, PUBLISH, PSUBSCRIBE, PUNSUBSCRIBE
+
+#### Lua脚本命令
+- EVAL, EVALSHA
 
 ### 并发模块设计
 `concurrent` 模块提供完整的并发解决方案：
@@ -46,7 +71,7 @@ Astra 是一个基于 C++17 的高性能 Redis 兼容缓存中间件，采用模
    - **ParallelWork**：并行任务组
    - **TaskPipeline**：带共享上下文的状态化任务链
 
-```
+```cpp
 // 示例：并发任务编排
 auto queue = TaskQueue::Create();
 
@@ -71,6 +96,27 @@ ParallelWork::Create(queue)
   - 完整协议支持（Redis RESP 兼容）
   - 可扩展的命令模式设计
   - 多级任务队列优化资源调度
+
+## 客户端SDK
+
+Astra提供了多种语言的客户端SDK，方便开发者集成到自己的应用中：
+
+### C++ SDK
+面向C++开发者，提供完整的Astra功能访问接口，支持所有Redis兼容命令。
+
+### C SDK
+面向C开发者，提供C语言接口访问Astra功能，兼容标准C语言规范。
+
+### LabVIEW SDK
+面向LabVIEW开发者，提供LabVIEW环境下的Astra访问接口，方便在LabVIEW中集成缓存功能。
+
+## Windows服务模式
+
+Astra支持在Windows系统中以服务模式运行，提供后台持久化运行能力：
+- 支持安装为Windows服务
+- 支持启动、停止服务
+- 支持设置自动启动
+- 服务模式下稳定运行，支持系统重启后自动启动
 
 ## 快速入门
 ### 构建要求
@@ -101,7 +147,7 @@ $ Astra-CacheServer -p 6379
 # 运行示例客户端
 $ ./build/bin/example_client
 
-#  在windows下安装服务模式
+# 在windows下安装服务模式
 $ Astra-CacheServer.exe install
 
 # 启动服务
@@ -109,7 +155,9 @@ $ Astra-CacheServer.exe start
 
 # 停止服务
 $ Astra-CacheServer.exe stop
-$
+
+# 设置服务自动启动
+$ Astra-CacheServer.exe autostart
 ```
 
 ## 功能演示
@@ -130,6 +178,21 @@ int main() {
     // 原子操作
     client.Incr("counter");
     auto count = client.Get("counter");
+    
+    // 批量操作
+    std::vector<std::pair<std::string, std::string>> kvs = {
+        {"key1", "value1"},
+        {"key2", "value2"}
+    };
+    client.MSet(kvs);
+    
+    std::vector<std::string> keys = {"key1", "key2"};
+    auto values = client.MGet(keys);
+    
+    // 发布/订阅
+    // 订阅需要单独的客户端实例
+    // 发布消息
+    client.Publish("channel", "Hello, Astra!");
 }
 ```
 
@@ -137,13 +200,16 @@ int main() {
 ```
 Astra/
 ├── Astra-CacheServer/    # Redis兼容缓存服务
+│   ├── platform/         # 平台相关代码
+│   │   └── windows/      # Windows服务模式实现
+│   ├── sdk/              # 客户端SDK（多种语言实现）
+│   └── ...               # 服务器核心代码
 ├── core/                 # 核心类型定义
 ├── utils/                # 工具类（日志/ScopeGuard）
 ├── concurrent/           # 并发支持（线程池/TaskQueue）
 ├── datastructures/       # 数据结构（LRU/无锁队列）
 ├── tests/                # GTest单元测试
 ├── third-party/          # 第三方依赖（Asio/fmt）
-├── sdk/                  # 客户端SDK（命令模式实现）
 └── benchmark/            # 性能测试
 
 ```

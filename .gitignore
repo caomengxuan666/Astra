@@ -8,3 +8,5 @@ third-party/mimalloc/bin
 /.vs
 /.vscode
 /.cache
+checks.json
+/code_stats_reports/clang-tidy
