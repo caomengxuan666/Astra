@@ -1,10 +1,10 @@
 # 6. 项目配置
-find_package(benchmark CONFIG REQUIRED)
-add_executable(bench_logger bench_logger.cpp)
-target_link_libraries(bench_logger PRIVATE benchmark::benchmark benchmark::benchmark_main zenutils)
-target_include_directories(bench_logger PRIVATE ${PROJECT_SOURCE_DIR}/utils)
+# find_package(benchmark CONFIG REQUIRED)
+# add_executable(bench_logger bench_logger.cpp)
+# target_link_libraries(bench_logger PRIVATE benchmark::benchmark benchmark::benchmark_main zenutils)
+# target_include_directories(bench_logger PRIVATE ${PROJECT_SOURCE_DIR}/utils)
 
-find_package(hiredis CONFIG REQUIRED)
+# find_package(hiredis CONFIG REQUIRED)
 
 # add_executable(bench_astra bench_astra.cpp)
 # 修正：添加 benchmark::benchmark 和 benchmark::benchmark_main 到链接库
