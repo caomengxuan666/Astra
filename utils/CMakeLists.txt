@@ -1,1 +1,1 @@
-add_library(zenutils logger.hpp logger.cpp uuid_utils.cpp)
+add_library(zenutils logger.hpp logger.cpp uuid_utils.cpp ${CMAKE_SOURCE_DIR}/Astra-CacheServer/persistence/process.cpp)

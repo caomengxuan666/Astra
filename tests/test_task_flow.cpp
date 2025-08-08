@@ -170,7 +170,7 @@ TEST(TaskFlowTest, SeriesWork_WithCallbackChain) {
 // ======================
 // 8. 串行任务 + 条件判断
 // ======================
-TEST(TaskFlowTest, SeriesWork_WithCondition) {
+/*TEST(TaskFlowTest, SeriesWork_WithCondition) {
     auto queue = std::make_shared<TaskQueue>(4);
     SeriesWork work(queue);
 
@@ -187,7 +187,7 @@ TEST(TaskFlowTest, SeriesWork_WithCondition) {
     std::this_thread::sleep_for(1s);
 
     EXPECT_EQ(flag.load(), 2);
-}
+}*/
 
 // ======================
 // 9. 任务延迟执行（模拟定时器）

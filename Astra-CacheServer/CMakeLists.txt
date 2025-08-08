@@ -10,9 +10,11 @@ set(SERVER_SOURCE
         server/ChannelManager.cpp
         server/session.cpp
         server/status_collector.cpp
-        persistence/util_path.cpp 
+        persistence/util_path.cpp
+        persistence/process.cpp
         persistence/process.cpp
 )
+
 # WINDOWS 平台特有的文件
 set(WIN_SOURCE
         ${CMAKE_CURRENT_SOURCE_DIR}/platform/windows/WindowsServicePlugin.cpp
@@ -20,19 +22,20 @@ set(WIN_SOURCE
         ${CMAKE_CURRENT_SOURCE_DIR}/platform/windows/ClientWindow.cpp
 )
 
-
 if(WIN32)
-add_executable(Astra-CacheServer ${SERVER_SOURCE} ${WIN_SOURCE})
+        add_executable(Astra-CacheServer ${SERVER_SOURCE} ${WIN_SOURCE})
 else()
-add_executable(Astra-CacheServer ${SERVER_SOURCE})
+        add_executable(Astra-CacheServer ${SERVER_SOURCE})
 endif()
+
 add_lua_support(Astra-CacheServer)
 target_compile_definitions(Astra-CacheServer PRIVATE FMT_DISABLE_UTF8=1)
-#target_link_libraries(Astra-CacheServer zenutils)
 
+# target_link_libraries(Astra-CacheServer zenutils)
 add_library(Astra-CacheSDK SHARED
         sdk/astra_client.cpp
-        persistence/util_path.cpp 
+        persistence/util_path.cpp
+        persistence/process.cpp
         sdk/astra_client_c.cpp
         persistence/process.cpp
         sdk/astra_client_labview.h
@@ -40,8 +43,8 @@ add_library(Astra-CacheSDK SHARED
 )
 
 target_compile_definitions(Astra-CacheSDK PRIVATE ZEN_DLL_EXPORT)
-#target_link_libraries(Astra-CacheSDK PRIVATE zenutils)
 
+# target_link_libraries(Astra-CacheSDK PRIVATE zenutils)
 setup_target(Astra-CacheSDK)
 setup_target(Astra-CacheServer)
 

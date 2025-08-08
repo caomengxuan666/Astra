@@ -17,6 +17,7 @@ namespace Astra::persistence {
  * @param[out] sys_children 子进程内核态时间（暂为0）
  * @param[out] user_children 子进程用户态时间（暂为0）
  * @return 成功返回true，失败返回false
+ * @note 支持 Windows、Linux 和 macOS 平台
  */
     bool get_process_cpu_times(uint64_t &sys_time,
                                uint64_t &user_time,
@@ -29,6 +30,7 @@ namespace Astra::persistence {
  * @param[out] kernel_time 系统内核态总时间
  * @param[out] user_time 系统用户态总时间
  * @return 成功返回true，失败返回false
+ * @note 支持 Windows、Linux 和 macOS 平台
  */
     bool get_system_cpu_times(uint64_t &idle_time,
                               uint64_t &kernel_time,
@@ -39,6 +41,7 @@ namespace Astra::persistence {
  * @param[out] rss 物理内存（常驻集大小，字节）
  * @param[out] vsize 虚拟内存（字节）
  * @return 成功返回true，失败返回false
+ * @note 支持 Windows、Linux 和 macOS 平台
  */
     bool get_process_memory(uint64_t &rss,
                             uint64_t &vsize);

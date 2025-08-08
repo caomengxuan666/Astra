@@ -7,8 +7,8 @@
 #include <fmt/color.h>
 #include <fmt/core.h>
 #include <iostream>
-#include <process.h>
 #include <sstream>
+#include <sys/types.h>
 
 namespace Astra {
     namespace fs = std::filesystem;
@@ -43,13 +43,13 @@ namespace Astra {
                    Logger::GetTimestamp(),
                    Logger::LevelToString(level),
                    message);
-        fmt::print(fmt::text_style{}, "");// 重置文本样式
+        fmt::print("");// 重置文本样式
     }
 
     // 文件输出器实现
     FileAppender::FileAppender(const std::string &base_dir, const LogConfig &config)
         : base_dir_(base_dir), config_(config) {
-        pid_str_ = std::to_string(_getpid());
+        pid_str_ = persistence::get_pid_str();
 
         auto now = std::chrono::system_clock::now();
         auto in_time_t = std::chrono::system_clock::to_time_t(now);
@@ -248,7 +248,7 @@ namespace Astra {
     // 同步文件输出器实现
     SyncFileAppender::SyncFileAppender(const std::string &base_dir, const LogConfig &config)
         : base_dir_(base_dir), config_(config) {
-        pid_str_ = std::to_string(_getpid());
+        pid_str_ = persistence::get_pid_str();
 
         auto now = std::chrono::system_clock::now();
         auto in_time_t = std::chrono::system_clock::to_time_t(now);
@@ -622,7 +622,7 @@ namespace Astra {
                                safe_level,
                                safe_message);
 
-#elif
+#else
                     // 其他平台都不用管
                     fmt::print("[{}] [{}] {}\n",
                                entry.timestamp,
@@ -632,7 +632,7 @@ namespace Astra {
                 }
 
                 if (current_style != fmt::text_style{}) {
-                    fmt::print(fmt::text_style{}, "");
+                    fmt::print("");
                 }
             }
         }

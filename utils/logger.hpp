@@ -16,6 +16,8 @@
 #include <lockfree_queue.hpp>
 #include <memory>
 
+#include "../Astra-CacheServer/persistence/process.hpp"
+
 #ifndef _WIN32
 #undef ERROR
 #endif

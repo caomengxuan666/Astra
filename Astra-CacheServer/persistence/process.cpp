@@ -1,9 +1,103 @@
 #include "process.hpp"
 
-#ifdef _WIN32
+#if defined(__APPLE__)
+// macOS平台实现
+#include <libproc.h>
+#include <mach/mach.h>
+#include <mach/mach_host.h>
+#include <mach/processor_info.h>
+#include <mach/task.h>
+#include <mach/task_info.h>
+#include <sys/resource.h>
+#include <sys/sysctl.h>
+#include <unistd.h>
+
+namespace Astra::persistence {
+
+    std::string get_pid_str() {
+        return std::to_string(getpid());
+    }
+
+    bool get_process_cpu_times(uint64_t &sys_time,
+                               uint64_t &user_time,
+                               uint64_t &sys_children,
+                               uint64_t &user_children) {
+        struct rusage usage;
+        if (getrusage(RUSAGE_SELF, &usage) != 0) {
+            return false;
+        }
+
+        // 转换为100纳秒单位（1微秒 = 10 个100纳秒单位）
+        const uint64_t microsec_to_100nanosec = 10;
+
+        sys_time = usage.ru_stime.tv_sec * 10000000 + usage.ru_stime.tv_usec * microsec_to_100nanosec;
+        user_time = usage.ru_utime.tv_sec * 10000000 + usage.ru_utime.tv_usec * microsec_to_100nanosec;
+        
+        // 子进程时间
+        sys_children = usage.ru_stimesv.tv_sec * 10000000 + usage.ru_stimesv.tv_usec * microsec_to_100nanosec;
+        user_children = usage.ru_utimesv.tv_sec * 10000000 + usage.ru_utimesv.tv_usec * microsec_to_100nanosec;
+
+        return true;
+    }
+
+    bool get_system_cpu_times(uint64_t &idle_time,
+                              uint64_t &kernel_time,
+                              uint64_t &user_time) {
+        // 使用host_processor_info获取CPU负载信息
+        processor_info_array_t cpu_info;
+        mach_msg_type_number_t msg_type;
+        natural_t processor_count;
+        kern_return_t kr = host_processor_info(mach_host_self(), PROCESSOR_CPU_LOAD_INFO, &processor_count, &cpu_info, &msg_type);
+        if (kr != KERN_SUCCESS) {
+            return false;
+        }
+
+        processor_cpu_load_info_t cpu_load_info = (processor_cpu_load_info_t)cpu_info;
+        
+        // 累加所有处理器核心的负载信息
+        uint64_t user = 0, system = 0, idle = 0, nice = 0;
+        for (natural_t i = 0; i < processor_count; i++) {
+            user += cpu_load_info[i].cpu_ticks[CPU_STATE_USER];
+            system += cpu_load_info[i].cpu_ticks[CPU_STATE_SYSTEM];
+            idle += cpu_load_info[i].cpu_ticks[CPU_STATE_IDLE];
+            nice += cpu_load_info[i].cpu_ticks[CPU_STATE_NICE];
+        }
+        
+        // 释放内存
+        vm_deallocate(mach_task_self(), (vm_address_t)cpu_info, msg_type);
+
+        // macOS上的CPU时间单位是ticks，需要转换为100纳秒
+        // 假设时钟频率为HZ=100 ticks/second，则1 tick = 10,000,000 纳秒 = 100,000 个100纳秒单位
+        const uint64_t tick_to_100nanosec = 100000;
+
+        idle_time = idle * tick_to_100nanosec;
+        kernel_time = system * tick_to_100nanosec;
+        user_time = (user + nice) * tick_to_100nanosec;
+
+        return true;
+    }
+
+    bool get_process_memory(uint64_t &rss,
+                            uint64_t &vsize) {
+        task_t task = mach_task_self();
+        struct task_basic_info info;
+        mach_msg_type_number_t count = TASK_BASIC_INFO_COUNT;
+
+        if (task_info(task, TASK_BASIC_INFO, (task_info_t)&info, &count) != KERN_SUCCESS) {
+            return false;
+        }
+
+        rss = info.resident_size;  // 物理内存（字节）
+        vsize = info.virtual_size; // 虚拟内存（字节）
+        return true;
+    }
+
+} // namespace Astra::persistence
+
+#elif defined(_WIN32)
 // Windows平台实现
-#include <psapi.h>
 #include <windows.h>
+#include <psapi.h>
 #pragma comment(lib, "psapi.lib")
 
 namespace Astra::persistence {

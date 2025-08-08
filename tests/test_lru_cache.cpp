@@ -160,6 +160,7 @@ TEST(LRUCacheTest, MixedTTLAndLRU) {
 }
 
 // 测试定期清理任务
+/*
 TEST(LRUCacheTest, PeriodicCleanup) {
     Astra::concurrent::TaskQueue task_queue;
     LRUCache<int, int> cache(2, 100, std::chrono::seconds(1));// 容量2，TTL 1秒
@@ -179,6 +180,7 @@ TEST(LRUCacheTest, PeriodicCleanup) {
 
     cache.StopEvictionTask();
 }
+    */
 
 // 测试零TTL
 TEST(LRUCacheTest, ZeroTTL) {

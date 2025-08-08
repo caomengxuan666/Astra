@@ -1,10 +1,10 @@
 #include "core/astra.hpp"
 #include "utils/logger.hpp"
+#include "persistence/process.hpp"
 #include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
-#include <process.h>// 用于获取PID
 #include <sstream>
 #include <thread>
 #include <vector>
@@ -18,7 +18,7 @@ protected:
     // 生成唯一测试目录
     std::string createTestDir(const std::string &type) {
         std::string testName = ::testing::UnitTest::GetInstance()->current_test_info()->name();
-        return type + "_test_logs_" + testName + "_" + std::to_string(_getpid());
+        return type + "_test_logs_" + testName + "_" + Astra::persistence::get_pid_str();
     }
 
     // 安全删除目录（处理Windows文件占用问题）
