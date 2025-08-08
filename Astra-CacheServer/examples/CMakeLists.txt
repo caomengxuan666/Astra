@@ -60,9 +60,9 @@ endif ()
 
 
 # 添加hiredis依赖
-find_package(hiredis CONFIG REQUIRED)
-add_executable(example_hiredis hiredis_client.cpp)
-target_link_libraries(example_hiredis PRIVATE hiredis::hiredis zenutils)
+#find_package(hiredis CONFIG REQUIRED)
+#add_executable(example_hiredis hiredis_client.cpp)
+#target_link_libraries(example_hiredis PRIVATE hiredis::hiredis zenutils)
 
 add_executable(labview_flat_test labview_flat_test.c)
 target_include_directories(labview_flat_test PRIVATE ../${CMAKE_CURRENT_SOURCE_DIR}/sdk)

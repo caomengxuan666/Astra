@@ -24,16 +24,17 @@ endif()
 
 # 仅在未添加过Lua子目录时才添加
 if(NOT TARGET astra_lua)
-    add_subdirectory("${PROJECT_SOURCE_DIR}/third-party/lua" 
-                     "${PROJECT_BINARY_DIR}/third-party/astra_lua_${CMAKE_BUILD_TYPE}" 
-                     EXCLUDE_FROM_ALL)
+    add_subdirectory("${PROJECT_SOURCE_DIR}/third-party/lua"
+        "${PROJECT_BINARY_DIR}/third-party/astra_lua_${CMAKE_BUILD_TYPE}"
+        EXCLUDE_FROM_ALL)
 endif()
 
 # 定义sol2接口库（纯头文件，无需编译）
 if(NOT TARGET astra_sol2)
     add_library(astra_sol2 INTERFACE)
-    target_include_directories(astra_sol2 INTERFACE 
+    target_include_directories(astra_sol2 INTERFACE
         "${PROJECT_SOURCE_DIR}/third-party/sol2/include")
+
     # 确保sol2知道我们使用的是系统中的Lua库
     target_link_libraries(astra_sol2 INTERFACE astra_lua)
 endif()
@@ -53,20 +54,19 @@ function(add_lua_support)
 
         # 链接Lua库和sol2
         target_link_libraries(${target} PRIVATE astra_lua astra_sol2)
-        
+
         # 添加头文件路径
-        target_include_directories(${target} PRIVATE 
+        target_include_directories(${target} PRIVATE
             "${PROJECT_SOURCE_DIR}/third-party/lua"
             "${PROJECT_SOURCE_DIR}/third-party/sol2/include")
-        
+
         # 定义编译宏
         if(WIN32)
             target_compile_definitions(${target} PRIVATE WITH_LUA WITH_SOL2 WIN32)
         else()
             target_compile_definitions(${target} PRIVATE WITH_LUA WITH_SOL2)
         endif()
-        
+
         message(STATUS "已为目标${target}添加Lua和sol2支持")
     endforeach()
 endfunction()
-    
