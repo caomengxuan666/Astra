@@ -4,3 +4,6 @@
 [submodule "third-party/lua"]
 	path = third-party/lua
 	url = https://github.com/caomengxuan666/lua.git
+[submodule "third-party/gooletest"]
+	path = third-party/gooletest
+	url = https://github.com/google/googletest.git
