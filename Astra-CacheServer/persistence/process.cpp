@@ -1,4 +1,5 @@
 #include "process.hpp"
+#include <sstream>
 
 #if defined(__APPLE__)
 // macOS平台实现
