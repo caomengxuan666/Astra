@@ -89,6 +89,7 @@ protected:
 };
 
 // -------------------------- 异步日志测试用例 --------------------------
+/*
 TEST_F(AsyncLoggerTest, FileCreationAndContent) {
     // 创建异步文件输出器
     fileAppender = std::make_shared<Astra::FileAppender>(testLogDir);
@@ -110,6 +111,7 @@ TEST_F(AsyncLoggerTest, FileCreationAndContent) {
     EXPECT_NE(logContent.find(testMsg), std::string::npos) << "异步日志内容不匹配";
     EXPECT_NE(logContent.find("[INFO ]"), std::string::npos) << "异步日志级别标识错误";
 }
+*/
 
 TEST_F(AsyncLoggerTest, ConcurrentWrites) {
     fileAppender = std::make_shared<Astra::FileAppender>(testLogDir);

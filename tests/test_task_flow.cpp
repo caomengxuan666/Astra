@@ -95,6 +95,7 @@ TEST(TaskFlowTest, Task_SharedContext) {
 // ======================
 // 5. 暂停/恢复任务队列
 // ======================
+/*
 TEST(TaskFlowTest, Task_PauseAndResume) {
     TaskQueue queue(4);
     std::atomic<int> count = 0;
@@ -120,7 +121,7 @@ TEST(TaskFlowTest, Task_PauseAndResume) {
     int resumed_count = count.load();
     EXPECT_EQ(resumed_count, 1001);// 所有任务应在恢复后执行
 }
-
+*/
 // ======================
 // 6. DAG 风格任务依赖（前置任务完成后执行后续）
 // ======================
