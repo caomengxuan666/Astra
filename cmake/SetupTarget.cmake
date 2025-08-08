@@ -16,5 +16,5 @@ function(setup_target TARGET_NAME)
 
     # 链接库
     target_link_libraries(${TARGET_NAME} PRIVATE ${LINKED_LIBRARIES})
-    message(STATUS "Setup target ${TARGET_NAME}")
+    #message(STATUS "Setup target ${TARGET_NAME}")
 endfunction()

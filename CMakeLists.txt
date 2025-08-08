@@ -47,7 +47,7 @@ endif()
 endif()
 
 include(cmake/FindVcpkg.cmake)
-setup_vcpkg()
+#setup_vcpkg()
 
 # 添加子模块
 add_subdirectory(core)

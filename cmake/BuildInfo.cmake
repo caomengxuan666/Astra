@@ -67,8 +67,8 @@ configure_file(
 include_directories("${BUILD_INFO_OUTPUT_DIR}")
 
 # 打印生成信息（可选，用于验证）
-message(STATUS "生成版本信息文件: ${BUILD_INFO_OUTPUT}")
+message(STATUS "Generate Version files: ${BUILD_INFO_OUTPUT}")
 message(STATUS "Git SHA1: ${ASTRA_VERSION_SHA1}")
-message(STATUS "构建ID: ${ASTRA_BUILD_ID}")
-message(STATUS "系统: ${ASTRA_OS} (${ASTRA_ARCH_BITS}位)")
-message(STATUS "编译器: ${ASTRA_COMPILER}")
+message(STATUS "Build ID: ${ASTRA_BUILD_ID}")
+message(STATUS "System: ${ASTRA_OS} (${ASTRA_ARCH_BITS}位)")
+message(STATUS "Compiler: ${ASTRA_COMPILER}")

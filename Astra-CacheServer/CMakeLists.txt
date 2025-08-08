@@ -15,11 +15,10 @@ set(SERVER_SOURCE
 )
 # WINDOWS 平台特有的文件
 set(WIN_SOURCE
-        platform/windows/WindowsServicePlugin.cpp
-        platform/windows/WindowsTrayPlugin.cpp
-        platform/windows/ClientWindow.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/platform/windows/WindowsServicePlugin.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/platform/windows/WindowsTrayPlugin.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/platform/windows/ClientWindow.cpp
 )
-
 
 
 if(WIN32)
