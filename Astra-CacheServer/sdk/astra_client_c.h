@@ -6,6 +6,7 @@ extern "C" {
 #endif
 #include "astra_resp.h"
 #include <core/macros.hpp>
+#include <stddef.h>
 typedef long long int64;
 
 // 不透明指针类型
