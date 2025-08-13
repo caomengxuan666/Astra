@@ -1,0 +1,18 @@
+[Service]
+User=__USER__
+Group=__GROUP__
+ExecStart=/usr/local/bin/Astra-CacheServer -p6380 -linfo
+WorkingDirectory=__WORKING_DIR__
+Restart=always
+RestartSec=5
+StartLimitInterval=60
+StartLimitBurst=3
+LimitNOFILE=65536
+LimitNPROC=4096
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=astra
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=false
+ReadWritePaths=__WORKING_DIR__
