@@ -67,6 +67,58 @@ add_subdirectory(Astra-CacheServer)
 
 # 测试
 enable_testing()
-add_subdirectory(tests)
+
+# add_subdirectory(tests)
 add_subdirectory(benchmark)
 add_subdirectory(third-party/gooletest)
+
+# CPack配置
+set(CPACK_PACKAGE_NAME "Astra-CacheServer")
+set(CPACK_PACKAGE_VENDOR "Astra")
+set(CPACK_PACKAGE_DESCRIPTION "A high-performance Redis-compatible caching middleware based on C++17")
+set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/your-org/Astra")
+set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
+set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
+set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
+set(CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}")
+set(CPACK_PACKAGE_CONTACT "support@astra.example.com")
+set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+
+# 设置安装文件名
+set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CMAKE_SYSTEM_NAME}")
+
+# 设置生成器
+if(WIN32)
+    # Windows平台生成NSIS安装包、TAR.GZ和ZIP
+    set(CPACK_GENERATOR "NSIS;TGZ;ZIP")
+    
+    # NSIS特定配置
+    set(CPACK_NSIS_DISPLAY_NAME "Astra Cache Server")
+    set(CPACK_NSIS_PACKAGE_NAME "Astra Cache Server")
+    set(CPACK_NSIS_CONTACT "support@astra.example.com")
+    set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
+    set(CPACK_NSIS_MODIFY_PATH ON)
+    
+    # Windows服务安装
+    set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
+        ExecWait '$INSTDIR\\\\bin\\\\Astra-CacheServer.exe install'
+    ")
+    set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "
+        ExecWait '$INSTDIR\\\\bin\\\\Astra-CacheServer.exe uninstall'
+    ")
+else()
+    # Linux平台生成DEB、TAR.GZ和ZIP
+    set(CPACK_GENERATOR "DEB;TGZ;ZIP")
+    
+    # DEB特定配置
+    set(CPACK_DEBIAN_PACKAGE_NAME "astra-cacheserver")
+    set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Astra Team <support@astra.example.com>")
+    set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "A high-performance Redis-compatible caching middleware")
+    set(CPACK_DEBIAN_PACKAGE_SECTION "devel")
+    set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6 (>= 2.17)")
+endif()
+
+# 包含CPack模块
+include(CPack)

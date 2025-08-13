@@ -57,13 +57,14 @@ install(TARGETS Astra-CacheSDK
         ARCHIVE DESTINATION lib
         INCLUDES DESTINATION include
         CONFIGURATIONS Release
+        COMPONENT applications
 )
 
-install(FILES sdk/astra_client_c.h sdk/astra_client_labview.h sdk/astra_resp.h DESTINATION include)
-install(FILES ../core/macros.hpp DESTINATION include/core)
+install(FILES sdk/astra_client_c.h sdk/astra_client_labview.h sdk/astra_resp.h DESTINATION include COMPONENT applications)
+install(FILES ../core/macros.hpp DESTINATION include/core COMPONENT applications)
 
 # install 写入
-install(TARGETS Astra-CacheServer RUNTIME DESTINATION bin)
+install(TARGETS Astra-CacheServer RUNTIME DESTINATION bin COMPONENT applications)
 
 # install 指定release
-install(TARGETS Astra-CacheServer RUNTIME DESTINATION bin CONFIGURATIONS Release)
+install(TARGETS Astra-CacheServer RUNTIME DESTINATION bin CONFIGURATIONS Release COMPONENT applications)
