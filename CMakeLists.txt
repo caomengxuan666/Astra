@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(Astra VERSION 0.1.0.0 LANGUAGES CXX C) # 完整版本号：主.次.补丁.修订
+project(Astra VERSION 0.1.0.2 LANGUAGES CXX C) # 完整版本号：主.次.补丁.修订
 
 # 添加生成目录到包含路径，确保代码能引用
 include_directories("${PROJECT_BINARY_DIR}/core")
@@ -92,14 +92,14 @@ set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CM
 if(WIN32)
     # Windows平台生成NSIS安装包、TAR.GZ和ZIP
     set(CPACK_GENERATOR "NSIS;TGZ;ZIP")
-    
+
     # NSIS特定配置
     set(CPACK_NSIS_DISPLAY_NAME "Astra Cache Server")
     set(CPACK_NSIS_PACKAGE_NAME "Astra Cache Server")
     set(CPACK_NSIS_CONTACT "support@astra.example.com")
     set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
     set(CPACK_NSIS_MODIFY_PATH ON)
-    
+
     # Windows服务安装
     set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
         ExecWait '$INSTDIR\\\\bin\\\\Astra-CacheServer.exe install'
@@ -110,7 +110,7 @@ if(WIN32)
 else()
     # Linux平台生成DEB、TAR.GZ和ZIP
     set(CPACK_GENERATOR "DEB;TGZ;ZIP")
-    
+
     # DEB特定配置
     set(CPACK_DEBIAN_PACKAGE_NAME "astra-cacheserver")
     set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Astra Team <support@astra.example.com>")

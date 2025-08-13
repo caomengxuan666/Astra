@@ -1,105 +1,96 @@
-name: CMake Multi-Platform CI
+name: Package
 
 on:
   push:
-    branches: ["main", "master"]
-    tags:
-      - 'v*'
+    branches: [main, master]
+    tags: ["v*"]
   pull_request:
-    branches: ["main", "master"]
+    branches: [main, master]
 
 jobs:
-  build:
+  package:
+    name: Package for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
-        build_type: [Release]
-        include:
-          - os: windows-latest
-            c_compiler: cl
-            cpp_compiler: cl
-            generator: "Visual Studio 17 2022"
-            is_windows: true
-          - os: ubuntu-latest
-            c_compiler: gcc
-            cpp_compiler: g++
-            generator: "Unix Makefiles"
-            is_windows: false
-          - os: ubuntu-latest
-            c_compiler: clang
-            cpp_compiler: clang++
-            generator: "Unix Makefiles"
-            is_windows: false
+        os: [ubuntu-22.04, windows-2022]
 
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: "recursive"
 
-      - name: Setup Linux Dependencies
-        if: matrix.is_windows == false
+      - name: Install dependencies (Ubuntu)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake clang rpm
+          sudo apt-get install -y build-essential cmake rpm dpkg
+        timeout-minutes: 5
 
-      - name: Setup Windows Dependencies
-        if: matrix.is_windows
+      - name: Install NSIS (Windows)
+        if: runner.os == 'Windows'
         run: |
           choco install nsis
+        timeout-minutes: 5
 
-      - name: Configure CMake (Windows)
-        if: matrix.is_windows
-        shell: cmd
+      - name: Configure CMake
         run: |
-          cmake -B build ^
-            -G "${{ matrix.generator }}" ^
-            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} ^
-            -DCMAKE_C_COMPILER=${{ matrix.c_compiler }} ^
-            -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
+          cmake -B build -DCMAKE_BUILD_TYPE=Release --log-level=VERBOSE
+        timeout-minutes: 10
 
-      - name: Configure CMake (Linux)
-        if: matrix.is_windows == false
-        shell: bash
+      - name: Build
         run: |
-          cmake -B build \
-            -G "${{ matrix.generator }}" \
-            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            -DCMAKE_C_COMPILER=${{ matrix.c_compiler }} \
-            -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }} \
-            -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-            -DCMAKE_CXX_FLAGS="-fPIC -fms-extensions" \
-            -Dstrdup=_strdup
+          cmake --build build --config Release --verbose
+        timeout-minutes: 20
 
-      - name: Build (Windows)
-        if: matrix.is_windows
-        shell: cmd
+      - name: Package (with libs)
         run: |
-          cmake --build build --config ${{ matrix.build_type }} --parallel
-
-      - name: Build (Linux)
-        if: matrix.is_windows == false
-        shell: bash
-        run: |
-          cmake --build build --config ${{ matrix.build_type }} --parallel
-
-      - name: Package (Windows)
-        if: matrix.is_windows
-        working-directory: build
-        shell: cmd
-        run: |
+          cd build
           cpack -C applications
+        timeout-minutes: 10
 
-      - name: Package (Linux)
-        if: matrix.is_windows == false
-        working-directory: build
-        shell: bash
+      - name: List generated packages (with libs)
         run: |
-          cpack -C applications
+          ls -la build/
+        shell: bash
 
-      - name: Upload Packages
+      - name: Upload artifacts (with libs)
         uses: actions/upload-artifact@v4
         with:
-          name: packages-${{ matrix.os }}-${{ matrix.cpp_compiler }}
-          path: build/Astra-CacheServer-*
+          name: astra-cache-server-${{ matrix.os }}-with-libs
+          path: |
+            build/*.tar.gz
+            build/*.zip
+            build/*.deb
+            build/*.rpm
+            build/*.exe
+
+  release:
+    name: Create Release
+    needs: [package]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Display structure of downloaded files
+        run: ls -R
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            astra-cache-server-*/*.tar.gz
+            astra-cache-server-*/*.zip
+            astra-cache-server-*/*.deb
+            astra-cache-server-*/*.rpm
+            astra-cache-server-*/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
