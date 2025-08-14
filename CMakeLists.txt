@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(Astra VERSION 0.1.0.2 LANGUAGES CXX C) # 完整版本号：主.次.补丁.修订
+project(Astra VERSION 0.1.0.4 LANGUAGES CXX C) # 完整版本号：主.次.补丁.修订
 
 # 添加生成目录到包含路径，确保代码能引用
 include_directories("${PROJECT_BINARY_DIR}/core")
