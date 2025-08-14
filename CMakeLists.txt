@@ -120,5 +120,22 @@ else()
     set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6 (>= 2.17)")
 endif()
 
-# 包含CPack模块
+# 启用 CPack 生成 deb 包
 include(CPack)
+set(CPACK_GENERATOR "DEB")
+set(CPACK_DEBIAN_PACKAGE_NAME "astra-cacheserver")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Your Name <your@email.com>")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "systemd, libfmt-dev, libasio-dev")
+set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "Astra Cache Server - High performance caching solution")
+set(CPACK_DEBIAN_PACKAGE_SECTION "utils")
+set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
+
+# 安装 astra_service.sh 脚本
+install(FILES ${PROJECT_SOURCE_DIR}/astra_service.sh
+        DESTINATION /usr/local/bin
+        PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ)
+
+# 安装服务模板文件
+install(FILES ${PROJECT_SOURCE_DIR}/astra.service.template
+        DESTINATION /usr/local/etc/astra
+        PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)

@@ -1,0 +1,14 @@
+Source: astra-cache-server
+Section: utils
+Priority: optional
+Maintainer: caomengxuan <2507560089@qq.com>
+Build-Depends: debhelper (>= 12), cmake, libfmt-dev, libasio-dev
+Standards-Version: 4.5.0
+Homepage: https://github.com/caomengxuan666/Astra
+
+Package: astra-cacheserver
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, systemd
+Description: High performance caching server
+ Astra Cache Server provides a distributed caching solution with low latency
+ and high throughput.

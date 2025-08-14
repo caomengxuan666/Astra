@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    configure)
+        echo "安装 Astra 服务..."
+        # 确保脚本存在且可执行
+        if [ -f "/usr/local/bin/astra_service.sh" ]; then
+            /usr/local/bin/astra_service.sh --install
+        else
+            echo "错误: astra_service.sh 未找到，无法安装服务"
+            exit 1
+        fi
+        ;;
+esac
