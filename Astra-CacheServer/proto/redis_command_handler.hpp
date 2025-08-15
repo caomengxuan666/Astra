@@ -3,6 +3,7 @@
 // #include "LuaCommands.h" // 这个可能不需要，除非你定义了其他Lua特定的命令类
 #include "LuaCommands.h"
 #include "LuaExecutor.h"
+#include "RedisDataCommands.hpp"
 #include "caching/AstraCacheStrategy.hpp"
 #include "server/ChannelManager.hpp"// 引入频道管理器
 #include "server/stats_event.h"
@@ -69,6 +70,24 @@ namespace Astra::proto {
             if (cmd == "EXISTS") return std::make_unique<ExistsCommand>(cache_);
             if (cmd == "MGET") return std::make_unique<MGetCommand>(cache_);
             if (cmd == "MSET") return std::make_unique<MSetCommand>(cache_);
+                        // Hash commands
+            if (cmd == "HSET") return std::make_unique<HSetCommand>(cache_);
+            if (cmd == "HGET") return std::make_unique<HGetCommand>(cache_);
+            if (cmd == "HGETALL") return std::make_unique<HGetAllCommand>(cache_);
+            
+            // List commands
+            if (cmd == "LPUSH") return std::make_unique<LPushCommand>(cache_);
+            if (cmd == "RPUSH") return std::make_unique<RPushCommand>(cache_);
+            if (cmd == "LPOP") return std::make_unique<LPopCommand>(cache_);
+            if (cmd == "RPOP") return std::make_unique<RPopCommand>(cache_);
+            if (cmd == "LLEN") return std::make_unique<LLenCommand>(cache_);
+            
+            // Set commands
+            if (cmd == "SADD") return std::make_unique<SAddCommand>(cache_);
+            if (cmd == "SMEMBERS") return std::make_unique<SMembersCommand>(cache_);
+            
+            // ZSet commands
+            if (cmd == "ZADD") return std::make_unique<ZAddCommand>(cache_);
 
             // Pub/Sub 命令（新增逻辑）
             if (cmd == "PUBSUB") {
@@ -103,12 +122,49 @@ namespace Astra::proto {
             REGISTER_LUA_CACHE_COMMAND("del", DelCommand);
             REGISTER_LUA_CACHE_COMMAND("exists", ExistsCommand);
             REGISTER_LUA_CACHE_COMMAND("incr", IncrCommand);
+            //REGISTER_LUA_CACHE_COMMAND("incrby", IncrByCommand);
             REGISTER_LUA_CACHE_COMMAND("decr", DecrCommand);
+            //REGISTER_LUA_CACHE_COMMAND("decrby", DecrByCommand);
             REGISTER_LUA_CACHE_COMMAND("ttl", TtlCommand);
             REGISTER_LUA_CACHE_COMMAND("mget", MGetCommand);
             REGISTER_LUA_CACHE_COMMAND("mset", MSetCommand);
             REGISTER_LUA_CACHE_COMMAND("keys", KeysCommand);
             // ... 为其他需要在 Lua 中调用的、只需要 cache_ 的命令添加注册行 ...
+
+            // 注册Hash命令
+            REGISTER_LUA_CACHE_COMMAND("hset", HSetCommand);
+            REGISTER_LUA_CACHE_COMMAND("hget", HGetCommand);
+            REGISTER_LUA_CACHE_COMMAND("hgetall", HGetAllCommand);
+            REGISTER_LUA_CACHE_COMMAND("hdel", HDelCommand);
+            REGISTER_LUA_CACHE_COMMAND("hlen", HLenCommand);
+            REGISTER_LUA_CACHE_COMMAND("hexists", HExistsCommand);
+            REGISTER_LUA_CACHE_COMMAND("hkeys", HKeysCommand);
+            REGISTER_LUA_CACHE_COMMAND("hvals", HValsCommand);
+
+            // 注册List命令
+            REGISTER_LUA_CACHE_COMMAND("lpush", LPushCommand);
+            REGISTER_LUA_CACHE_COMMAND("rpush", RPushCommand);
+            REGISTER_LUA_CACHE_COMMAND("lpop", LPopCommand);
+            REGISTER_LUA_CACHE_COMMAND("rpop", RPopCommand);
+            REGISTER_LUA_CACHE_COMMAND("llen", LLenCommand);
+            //REGISTER_LUA_CACHE_COMMAND("lrange", LRangeCommand);
+            //REGISTER_LUA_CACHE_COMMAND("lindex", LIndexCommand);
+
+            // 注册Set命令
+            REGISTER_LUA_CACHE_COMMAND("sadd", SAddCommand);
+            //REGISTER_LUA_CACHE_COMMAND("srem", SRemCommand);
+            //REGISTER_LUA_CACHE_COMMAND("scard", SCardCommand);
+            REGISTER_LUA_CACHE_COMMAND("smembers", SMembersCommand);
+            //REGISTER_LUA_CACHE_COMMAND("sismember", SIsMemberCommand);
+            //REGISTER_LUA_CACHE_COMMAND("spop", SPopCommand);
+
+            // 注册ZSet命令
+            REGISTER_LUA_CACHE_COMMAND("zadd", ZAddCommand);
+            //REGISTER_LUA_CACHE_COMMAND("zrem", ZRemCommand);
+            //REGISTER_LUA_CACHE_COMMAND("zcard", ZCardCommand);
+            //REGISTER_LUA_CACHE_COMMAND("zrange", ZRangeCommand);
+            //REGISTER_LUA_CACHE_COMMAND("zrangebyscore", ZRangeByScoreCommand);
+            //REGISTER_LUA_CACHE_COMMAND("zscore", ZScoreCommand);
 
             // 使用宏注册需要 channel_manager_ 的命令
             // 注意：SUBSCRIBE/UNSUBSCRIBE/PSUBSCRIBE/PUNSUBSCRIBE 通常不在此注册

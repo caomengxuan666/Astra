@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(Astra VERSION 0.1.0.2 LANGUAGES CXX C) # 完整版本号：主.次.补丁.修订
+project(Astra VERSION 0.1.0.4 LANGUAGES CXX C) # 完整版本号：主.次.补丁.修订
 
 # 添加生成目录到包含路径，确保代码能引用
 include_directories("${PROJECT_BINARY_DIR}/core")
@@ -118,6 +118,9 @@ else()
     set(CPACK_DEBIAN_PACKAGE_SECTION "devel")
     set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
     set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6 (>= 2.17)")
+    
+    # 设置相对安装路径以避免权限问题
+    set(CPACK_PACKAGING_INSTALL_PREFIX "/opt/astra")
 endif()
 
 # 包含CPack模块
