@@ -33,7 +33,7 @@ namespace Astra::persistence {
 
         sys_time = usage.ru_stime.tv_sec * 10000000 + usage.ru_stime.tv_usec * microsec_to_100nanosec;
         user_time = usage.ru_utime.tv_sec * 10000000 + usage.ru_utime.tv_usec * microsec_to_100nanosec;
-        
+
         // 子进程时间
         sys_children = usage.ru_stimesv.tv_sec * 10000000 + usage.ru_stimesv.tv_usec * microsec_to_100nanosec;
         user_children = usage.ru_utimesv.tv_sec * 10000000 + usage.ru_utimesv.tv_usec * microsec_to_100nanosec;
@@ -53,8 +53,8 @@ namespace Astra::persistence {
             return false;
         }
 
-        processor_cpu_load_info_t cpu_load_info = (processor_cpu_load_info_t)cpu_info;
-        
+        processor_cpu_load_info_t cpu_load_info = (processor_cpu_load_info_t) cpu_info;
+
         // 累加所有处理器核心的负载信息
         uint64_t user = 0, system = 0, idle = 0, nice = 0;
         for (natural_t i = 0; i < processor_count; i++) {
@@ -63,9 +63,9 @@ namespace Astra::persistence {
             idle += cpu_load_info[i].cpu_ticks[CPU_STATE_IDLE];
             nice += cpu_load_info[i].cpu_ticks[CPU_STATE_NICE];
         }
-        
+
         // 释放内存
-        vm_deallocate(mach_task_self(), (vm_address_t)cpu_info, msg_type);
+        vm_deallocate(mach_task_self(), (vm_address_t) cpu_info, msg_type);
 
         // macOS上的CPU时间单位是ticks，需要转换为100纳秒
         // 假设时钟频率为HZ=100 ticks/second，则1 tick = 10,000,000 纳秒 = 100,000 个100纳秒单位
@@ -84,21 +84,21 @@ namespace Astra::persistence {
         struct task_basic_info info;
         mach_msg_type_number_t count = TASK_BASIC_INFO_COUNT;
 
-        if (task_info(task, TASK_BASIC_INFO, (task_info_t)&info, &count) != KERN_SUCCESS) {
+        if (task_info(task, TASK_BASIC_INFO, (task_info_t) &info, &count) != KERN_SUCCESS) {
             return false;
         }
 
-        rss = info.resident_size;  // 物理内存（字节）
-        vsize = info.virtual_size; // 虚拟内存（字节）
+        rss = info.resident_size; // 物理内存（字节）
+        vsize = info.virtual_size;// 虚拟内存（字节）
         return true;
     }
 
-} // namespace Astra::persistence
+}// namespace Astra::persistence
 
 #elif defined(_WIN32)
 // Windows平台实现
-#include <windows.h>
 #include <psapi.h>
+#include <windows.h>
 #pragma comment(lib, "psapi.lib")
 
 namespace Astra::persistence {

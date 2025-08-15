@@ -55,11 +55,11 @@ namespace Astra {
         auto in_time_t = std::chrono::system_clock::to_time_t(now);
         std::tm tm;
 
-        #ifdef _WIN32
+#ifdef _WIN32
         localtime_s(&tm, &in_time_t);
-        #elif defined(__linux__) || defined(__APPLE__)
+#elif defined(__linux__) || defined(__APPLE__)
         localtime_r(&in_time_t, &tm);
-        #endif
+#endif
 
         std::stringstream ss;
         ss << std::put_time(&tm, "%Y%m%d_%H%M%S");
@@ -259,11 +259,11 @@ namespace Astra {
         auto now = std::chrono::system_clock::now();
         auto in_time_t = std::chrono::system_clock::to_time_t(now);
         std::tm tm;
-        #ifdef _WIN32
+#ifdef _WIN32
         localtime_s(&tm, &in_time_t);
-        #elif defined(__linux__) || defined(__APPLE__)
+#elif defined(__linux__) || defined(__APPLE__)
         localtime_r(&in_time_t, &tm);
-        #endif
+#endif
         std::stringstream ss;
         ss << std::put_time(&tm, "%Y%m%d_%H%M%S");
         start_time_str_ = ss.str();
@@ -450,11 +450,11 @@ namespace Astra {
         auto now = std::chrono::system_clock::now();
         auto in_time_t = std::chrono::system_clock::to_time_t(now);
         std::tm tm;
-        #ifdef _WIN32
+#ifdef _WIN32
         localtime_s(&tm, &in_time_t);
-        #elif defined(__linux__) || defined(__APPLE__)
+#elif defined(__linux__) || defined(__APPLE__)
         localtime_r(&in_time_t, &tm);
-        #endif
+#endif
 
         char buf[20];
         strftime(buf, sizeof(buf), "%Y%m%d_%H%M%S", &tm);

@@ -21,7 +21,8 @@ protected:
 };
 
 // 同步日志基准测试
-BENCHMARK_DEFINE_F(LoggerBenchmark, SyncConsoleLog)(benchmark::State &state) {
+BENCHMARK_DEFINE_F(LoggerBenchmark, SyncConsoleLog)
+(benchmark::State &state) {
     const std::string message = "Benchmark test message - 0123456789";
 
     for (auto _: state) {
@@ -32,7 +33,8 @@ BENCHMARK_DEFINE_F(LoggerBenchmark, SyncConsoleLog)(benchmark::State &state) {
 }
 
 // 异步日志基准测试
-BENCHMARK_DEFINE_F(LoggerBenchmark, AsyncConsoleLog)(benchmark::State &state) {
+BENCHMARK_DEFINE_F(LoggerBenchmark, AsyncConsoleLog)
+(benchmark::State &state) {
     const std::string message = "Benchmark test message - 0123456789";
 
     // 切换到异步控制台输出

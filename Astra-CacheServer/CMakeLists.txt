@@ -1,5 +1,8 @@
 set(PROJECT_NAME "Astra-CacheServer")
 
+# 设置相对安装路径
+set(CMAKE_INSTALL_RELDIR "astra" CACHE STRING "Relative installation directory for Astra projects")
+
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
@@ -13,6 +16,7 @@ set(SERVER_SOURCE
         persistence/util_path.cpp
         persistence/process.cpp
         persistence/process.cpp
+        proto/ProtocolParser.cpp
 )
 
 # WINDOWS 平台特有的文件
@@ -52,10 +56,10 @@ add_subdirectory(examples)
 
 # install 安装Astra-CacheSDK的头文件和库文件
 install(TARGETS Astra-CacheSDK
-        RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib
-        INCLUDES DESTINATION include
+        RUNTIME DESTINATION ${CMAKE_INSTALL_RELDIR}/bin
+        LIBRARY DESTINATION ${CMAKE_INSTALL_RELDIR}/lib
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_RELDIR}/lib
+        INCLUDES DESTINATION ${CMAKE_INSTALL_RELDIR}/include
         CONFIGURATIONS Release
         COMPONENT applications
 )
@@ -64,7 +68,7 @@ install(FILES sdk/astra_client_c.h sdk/astra_client_labview.h sdk/astra_resp.h D
 install(FILES ../core/macros.hpp DESTINATION include/core COMPONENT applications)
 
 # install 写入
-install(TARGETS Astra-CacheServer RUNTIME DESTINATION bin COMPONENT applications)
+install(TARGETS Astra-CacheServer RUNTIME DESTINATION ${CMAKE_INSTALL_RELDIR}/bin COMPONENT applications)
 
 # install 指定release
-install(TARGETS Astra-CacheServer RUNTIME DESTINATION bin CONFIGURATIONS Release COMPONENT applications)
+install(TARGETS Astra-CacheServer RUNTIME DESTINATION ${CMAKE_INSTALL_RELDIR}/bin CONFIGURATIONS Release COMPONENT applications)

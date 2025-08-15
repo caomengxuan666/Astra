@@ -1,6 +1,6 @@
 #include "core/astra.hpp"
-#include "utils/logger.hpp"
 #include "persistence/process.hpp"
+#include "utils/logger.hpp"
 #include <chrono>
 #include <filesystem>
 #include <fstream>

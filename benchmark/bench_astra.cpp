@@ -43,7 +43,8 @@ protected:
     std::vector<std::string> values;// 测试值列表
 };
 
-BENCHMARK_DEFINE_F(ClientBenchmark, AstraC_SetGet)(benchmark::State &state) {
+BENCHMARK_DEFINE_F(ClientBenchmark, AstraC_SetGet)
+(benchmark::State &state) {
     AstraClient_C *client = astra_client_create(TEST_HOST, TEST_PORT);
     if (!client) {
         state.SkipWithError(astra_client_last_error());
@@ -85,7 +86,8 @@ BENCHMARK_DEFINE_F(ClientBenchmark, AstraC_SetGet)(benchmark::State &state) {
     state.SetItemsProcessed(state.iterations() * KEY_COUNT * 2);// SET+GET
 }
 
-BENCHMARK_DEFINE_F(ClientBenchmark, AstraLV_SetGet)(benchmark::State &state) {
+BENCHMARK_DEFINE_F(ClientBenchmark, AstraLV_SetGet)
+(benchmark::State &state) {
     void *client = astra_lv_client_create(TEST_HOST, TEST_PORT);
     if (!client) {
         state.SkipWithError(astra_lv_last_error());
@@ -124,7 +126,8 @@ BENCHMARK_DEFINE_F(ClientBenchmark, AstraLV_SetGet)(benchmark::State &state) {
     state.SetItemsProcessed(state.iterations() * KEY_COUNT * 2);
 }
 
-BENCHMARK_DEFINE_F(ClientBenchmark, AstraCPP_SetGet)(benchmark::State &state) {
+BENCHMARK_DEFINE_F(ClientBenchmark, AstraCPP_SetGet)
+(benchmark::State &state) {
     Astra::Client::AstraClient client(TEST_HOST, TEST_PORT);
 
     for (auto _: state) {
@@ -153,7 +156,8 @@ BENCHMARK_DEFINE_F(ClientBenchmark, AstraCPP_SetGet)(benchmark::State &state) {
     state.SetItemsProcessed(state.iterations() * KEY_COUNT * 2);
 }
 
-BENCHMARK_DEFINE_F(ClientBenchmark, Hiredis_SetGet)(benchmark::State &state) {
+BENCHMARK_DEFINE_F(ClientBenchmark, Hiredis_SetGet)
+(benchmark::State &state) {
     redisContext *c = redisConnect(TEST_HOST, TEST_PORT);
     if (c == nullptr || c->err) {
         state.SkipWithError(c ? c->errstr : "Can't allocate redis context");
