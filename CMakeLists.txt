@@ -130,13 +130,21 @@ if(LINUX)
     if(CMAKE_INSTALL_PREFIX STREQUAL "/opt/astra")
         set(SYSTEMD_SERVICE_DIR "/etc/systemd/system")
         install(CODE "
-            # 检查是否有系统目录写入权限
+            # 检查是否在CI/CD环境中运行
+            if(DEFINED ENV{CI} OR DEFINED ENV{GITHUB_ACTIONS})
+                message(STATUS \"CI/CD环境检测到，跳过系统服务自动配置\")
+                return()
+            endif()
+            
+            # 检查是否有系统目录写入权限（注意：HAS_PERMISSION为0表示有权限）
             execute_process(
                 COMMAND ${CMAKE_COMMAND} -E access \"${SYSTEMD_SERVICE_DIR}\" W_OK
                 RESULT_VARIABLE HAS_PERMISSION
             )
             if(HAS_PERMISSION)
-                message(FATAL_ERROR \"权限不足：请使用 sudo 执行 make install 以完成系统服务配置\")
+                message(STATUS \"权限不足或非root模式：跳过系统服务自动配置\")
+                message(STATUS \"如需启用系统服务，请使用 sudo 执行 make install\")
+                return()
             endif()
 
             # 复制服务文件
@@ -149,7 +157,8 @@ if(LINUX)
                 ERROR_VARIABLE COPY_ERROR
             )
             if(COPY_RESULT)
-                message(FATAL_ERROR \"复制服务文件失败: \${COPY_ERROR}\")
+                message(WARNING \"复制服务文件失败: \${COPY_ERROR}\")
+                return()
             endif()
 
             # 重载并启动服务

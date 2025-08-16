@@ -97,8 +97,8 @@ namespace Astra::persistence {
 
 #elif defined(_WIN32)
 // Windows平台实现
-#include <psapi.h>
 #include <windows.h>
+#include <psapi.h>
 #pragma comment(lib, "psapi.lib")
 
 namespace Astra::persistence {
