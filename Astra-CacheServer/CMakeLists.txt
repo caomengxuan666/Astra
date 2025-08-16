@@ -52,6 +52,7 @@ target_compile_definitions(Astra-CacheSDK PRIVATE ZEN_DLL_EXPORT)
 setup_target(Astra-CacheSDK)
 setup_target(Astra-CacheServer)
 
+add_subdirectory(cluster)
 add_subdirectory(examples)
 
 # install 安装Astra-CacheSDK的头文件和库文件

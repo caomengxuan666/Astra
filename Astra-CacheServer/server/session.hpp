@@ -1,8 +1,11 @@
 #pragma once
 
+#include "cluster/ClusterCommunicator.hpp"
+#include "cluster/ClusterSession.hpp"
 #include "concurrent/task_queue.hpp"
 #include "datastructures/lockfree_queue.hpp"
 #include "datastructures/lru_cache.hpp"
+#include "logger.hpp"
 #include "proto/ProtocolParser.hpp"
 #include "server/ChannelManager.hpp"
 #include <asio.hpp>
@@ -21,6 +24,10 @@ namespace Astra::proto {
 namespace Astra::server {
     class CommandHandler;
 }// namespace Astra::server
+
+namespace Astra::cluster {
+    class ClusterSession;
+}// namespace Astra::cluster
 
 namespace Astra::apps {
     // 消息结构体，用于存储模式匹配信息
@@ -94,6 +101,11 @@ namespace Astra::apps {
 
         void SwitchMode(SessionMode new_mode);
 
+        // 添加集群通信器支持
+        void SetClusterCommunicator(Astra::cluster::ClusterCommunicator *communicator) {
+            cluster_communicator_ = communicator;
+        }
+
     private:
         // 解析状态枚举
         enum class ParseState {
@@ -108,6 +120,7 @@ namespace Astra::apps {
         asio::ip::tcp::socket socket_;
         asio::strand<asio::any_io_executor> strand_;
         std::string buffer_;
+        std::shared_ptr<datastructures::AstraCache<datastructures::LRUCache, std::string, std::string>> cache_;
         std::shared_ptr<proto::ProtocolParser> parser_;
         std::shared_ptr<server::CommandHandler> command_handler_;
         std::shared_ptr<proto::RedisCommandHandler> handler_;
@@ -115,10 +128,14 @@ namespace Astra::apps {
         std::vector<std::string> argv_;
         std::shared_ptr<PubSubSession> pubsub_session_;// 依赖注入的PubSubSession
         datastructures::LockFreeQueue<PubSubMessage, 4096, datastructures::OverflowPolicy::RESIZE> msg_queue_;
+        datastructures::LockFreeQueue<std::string, 4096, datastructures::OverflowPolicy::RESIZE> cluster_bus_msg_queue_;
         std::atomic_bool is_writing_;
+        std::atomic_bool is_writing_cluster_bus_;
         std::shared_ptr<ChannelManager> channel_manager_;
         std::string session_id_;
         std::shared_ptr<proto::RedisCommandHandler> redis_handler_;
+        std::shared_ptr<cluster::ClusterSession> cluster_session_;
+        Astra::cluster::ClusterCommunicator *cluster_communicator_;
 
         // 私有成员函数声明
 
@@ -130,6 +147,12 @@ namespace Astra::apps {
         void HandlePubSubCommand();
         void TriggerMessageWrite();
         void DoWriteMessages();
+
+        // 集群总线协议处理
+        bool HandleClusterBusMessage(const std::string &message);
+        void TriggerClusterBusWrite();
+        void DoWriteClusterBusMessages();
+        std::string HandleClusterCommand(const std::vector<std::string> &argv);
         // 写入响应的公共接口
         void WriteResponse(const std::string &response);
         void CleanupSubscriptions();

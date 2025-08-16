@@ -10,6 +10,9 @@
 #include <datastructures/lru_cache.hpp>
 #include <fmt/format.h>
 #include <memory>
+// 添加集群相关头文件
+#include "cluster/ClusterCommunicator.hpp"
+#include "cluster/ClusterManager.hpp"
 
 
 namespace Astra::apps {
@@ -51,6 +54,11 @@ namespace Astra::apps {
 
             task_queue_->Stop();
             SaveToFile(persistence_db_name_);
+
+            // 停止集群通信
+            if (cluster_communicator_) {
+                cluster_communicator_->Stop();
+            }
         }
 
         void SaveToFile(const std::string &filename) {
@@ -68,6 +76,27 @@ namespace Astra::apps {
             enable_persistence_ = enable;
         }
 
+        // 启用集群模式
+        void EnableClusterMode(const std::string &local_host, uint16_t cluster_port, uint16_t listening_port) {
+            enable_cluster_ = true;
+
+            // 初始化集群管理器
+            auto cluster_manager = Astra::cluster::ClusterManager::GetInstance();
+            cluster_manager->Initialize(local_host, listening_port);// 使用客户端端口而不是集群端口
+
+            // 更新本地节点的端口信息
+            cluster_manager->UpdateNodePorts(
+                    cluster_manager->GetLocalNodeId(),
+                    listening_port,
+                    cluster_port);
+
+            // 初始化集群通信器
+            cluster_communicator_ = std::make_unique<Astra::cluster::ClusterCommunicator>(context_);
+            cluster_communicator_->Start(static_cast<uint16_t>(cluster_port));
+
+            ZEN_LOG_INFO("Cluster mode enabled on {}:{}", local_host, cluster_port);
+        }
+
     private:
         void DoAccept() {
             acceptor_.async_accept(
@@ -82,6 +111,16 @@ namespace Astra::apps {
                             {
                                 std::lock_guard<std::mutex> lock(sessions_mutex_);
                                 active_sessions_.push_back(session);
+                            }
+
+                            // 如果启用了集群模式，设置集群通信器
+                            if (enable_cluster_ && cluster_communicator_) {
+                                ZEN_LOG_DEBUG("Setting cluster communicator for new session");
+                                session->SetClusterCommunicator(cluster_communicator_.get());
+                            } else {
+                                if (enable_cluster_) {
+                                    ZEN_LOG_WARN("Cluster mode enabled but cluster communicator is not available");
+                                }
                             }
 
                             session->Start();
@@ -106,6 +145,9 @@ namespace Astra::apps {
         std::mutex sessions_mutex_;
         bool enable_persistence_ = false;
         std::shared_ptr<ChannelManager> channel_manager_;// 持有ChannelManager实例
+        // 集群相关成员
+        bool enable_cluster_ = false;
+        std::unique_ptr<Astra::cluster::ClusterCommunicator> cluster_communicator_;
     };
 
 }// namespace Astra::apps

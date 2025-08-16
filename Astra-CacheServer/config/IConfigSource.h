@@ -19,6 +19,9 @@ namespace Astra::apps {
         virtual std::string getPersistenceFileName() const = 0;
         virtual size_t getMaxLRUSize() const = 0;
         virtual bool getEnableLoggingFile() const = 0;
+        // 集群相关配置访问接口
+        virtual bool getEnableCluster() const = 0;
+        virtual uint16_t getClusterPort() const = 0;
 
         // 配置项更新接口（预留用于动态修改）
         virtual void setListeningPort(uint16_t port) = 0;

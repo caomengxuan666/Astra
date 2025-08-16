@@ -1,4 +1,5 @@
 #include "server/session.hpp"
+#include "cluster/ClusterSession.hpp"
 #include "core/astra.hpp"
 #include "logger.hpp"
 #include "proto/ProtocolParser.hpp"
@@ -10,6 +11,17 @@
 #include <utils/uuid_utils.h>
 
 namespace Astra::apps {
+
+    std::string Session::HandleClusterCommand(const std::vector<std::string> &argv) {
+        // 如果没有提供参数
+        if (argv.size() < 2) {
+            return proto::RespBuilder::Error("CLUSTER command requires a subcommand");
+        }
+
+        // 使用ClusterSession处理集群命令
+        std::vector<std::string> args(argv.begin() + 1, argv.end());
+        return cluster_session_->ProcessClientRequest("CLUSTER", args);
+    }
 
     // PubSubSession实现
     PubSubSession::PubSubSession(std::shared_ptr<ChannelManager> channel_manager)
@@ -74,14 +86,20 @@ namespace Astra::apps {
             std::shared_ptr<concurrent::TaskQueue> global_task_queue,
             std::shared_ptr<apps::ChannelManager> channel_manager) : socket_(std::move(socket)),
                                                                      strand_(asio::make_strand(socket_.get_executor())),
+                                                                     cache_(cache),
+                                                                     parser_(std::make_shared<proto::ProtocolParser>()),
                                                                      handler_(std::make_shared<proto::RedisCommandHandler>(cache, channel_manager, weak_from_this())),
                                                                      task_queue_(std::move(global_task_queue)),
-                                                                     parser_(std::make_shared<proto::ProtocolParser>()),
+                                                                     argv_(),
                                                                      pubsub_session_(std::make_shared<PubSubSession>(channel_manager)),
-                                                                     session_mode_(SessionMode::CacheMode),
+                                                                     msg_queue_(),
+                                                                     is_writing_(false),
                                                                      channel_manager_(std::move(channel_manager)),
-                                                                     stopped_(false),
-                                                                     is_writing_(false) {
+                                                                     session_id_(),
+                                                                     redis_handler_(),
+                                                                     cluster_session_(std::make_shared<cluster::ClusterSession>(cache)),
+                                                                     session_mode_(SessionMode::CacheMode),
+                                                                     stopped_(false) {
         // 使用UUID工具类生成session_id_
         auto generator = Astra::utils::UuidUtils::GetInstance().get_generator();
 
@@ -260,6 +278,12 @@ namespace Astra::apps {
 
         if (is_pubsub_cmd) {
             HandlePubSubCommand();// 直接处理PubSub命令（需 Strand 保护）
+        } else if (cmd == "CLUSTER") {
+            // 处理集群命令
+            std::string response = HandleClusterCommand(argv_);
+            asio::post(strand_, [self = shared_from_this(), response]() {
+                self->WriteResponse(response);
+            });
         } else {
             auto args_copy = argv_;
             auto self = shared_from_this();

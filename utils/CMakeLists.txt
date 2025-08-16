@@ -1,2 +1,2 @@
-add_library(zenutils logger.hpp logger.cpp uuid_utils.cpp ${CMAKE_SOURCE_DIR}/Astra-CacheServer/persistence/process.cpp)
+add_library(zenutils logger.hpp logger.cpp uuid_utils.cpp CRC16.cpp ${CMAKE_SOURCE_DIR}/Astra-CacheServer/persistence/process.cpp)
 set_target_properties(zenutils PROPERTIES POSITION_INDEPENDENT_CODE ON)

@@ -57,7 +57,6 @@ def generate_charts(cloc_data):
     """生成可视化图表"""
     try:
         import matplotlib.pyplot as plt
-        import plotly.express as px
         
         # 设置中文字体支持
         plt.rcParams['font.sans-serif'] = ['SimHei', 'FangSong', 'Microsoft YaHei', 'Arial Unicode MS']
@@ -82,18 +81,20 @@ def generate_charts(cloc_data):
         plt.savefig(os.path.join(REPORT_DIR, 'bar_chart.png'), dpi=100)
         plt.close()
         
-        # Plotly 交互式图表 (改为静态图片)
-        df = pd.DataFrame({
-            'Language': languages,
-            'Code': codes
-        })
-        fig = px.pie(df, values='Code', names='Language', 
-                    title='代码语言分布', hole=0.4)
-        fig.write_image(os.path.join(REPORT_DIR, 'pie_chart.png'))
+        # 使用matplotlib生成饼图
+        plt.figure(figsize=(8, 8))
+        plt.pie(codes, labels=languages, autopct='%1.1f%%', startangle=90)
+        plt.title('代码语言分布')
+        plt.axis('equal')  # 确保饼图是圆形的
+        plt.tight_layout()
+        plt.savefig(os.path.join(REPORT_DIR, 'pie_chart.png'), dpi=100)
+        plt.close()
         
         return True
-    except ImportError:
-        print("缺少可视化库，跳过图表生成")
+    except ImportError as e:
+        # 更明确地处理依赖缺失问题
+        missing_package = str(e).split("'")[1] if "'" in str(e) else str(e).split('"')[1]
+        print(f"缺少必要依赖: {missing_package}，请使用 pip install {missing_package} 安装")
         return False
     except Exception as e:
         print(f"图表生成出错: {e}")

@@ -12,7 +12,9 @@ namespace Astra::apps {
             : listening_port_(6380),
               log_level_(Astra::LogLevel::INFO),
               max_lru_size_(std::numeric_limits<size_t>::max()),
-              enable_logging_file_(false) {}
+              enable_logging_file_(false),
+              enable_cluster_(false),
+              cluster_port_(16380) {}
 
         // 基础初始化方法（供普通模式使用）
         bool initialize(int argc, char *argv[]) override {
@@ -62,6 +64,17 @@ namespace Astra::apps {
             return enable_logging_file_;
         }
 
+        // 集群相关配置访问接口
+        bool getEnableCluster() const override {
+            std::lock_guard<std::mutex> lock(mutex_);
+            return enable_cluster_;
+        }
+
+        uint16_t getClusterPort() const override {
+            std::lock_guard<std::mutex> lock(mutex_);
+            return cluster_port_;
+        }
+
         void setListeningPort(uint16_t port) override {
             std::lock_guard<std::mutex> lock(mutex_);
             listening_port_ = port;
@@ -81,6 +94,9 @@ namespace Astra::apps {
             args::ValueFlag<std::string> persistence_file(parser, "file", "Persistence file path", {'c', "coredump"}, "");
             args::ValueFlag<size_t> max_lru(parser, "size", "Max LRU cache size", {'m', "maxsize"}, std::numeric_limits<size_t>::max());
             args::ValueFlag<bool> enable_log_file(parser, "enable", "Enable file logging", {'f', "file"}, false);
+            // 集群相关参数
+            args::ValueFlag<bool> enable_cluster(parser, "enable", "Enable cluster mode", {"cluster"}, false);
+            args::ValueFlag<int> cluster_port(parser, "port", "Cluster communication port", {"cluster-port"}, 16380);
 
             try {
                 parser.ParseCLI(argc, argv);
@@ -97,6 +113,8 @@ namespace Astra::apps {
             persistence_file_ = args::get(persistence_file);
             max_lru_size_ = args::get(max_lru);
             enable_logging_file_ = args::get(enable_log_file);
+            enable_cluster_ = args::get(enable_cluster);
+            cluster_port_ = static_cast<uint16_t>(args::get(cluster_port));
             return true;
         }
 
@@ -120,6 +138,9 @@ namespace Astra::apps {
         std::string persistence_file_;
         size_t max_lru_size_;
         bool enable_logging_file_;
+        // 集群相关配置
+        bool enable_cluster_;
+        uint16_t cluster_port_;
     };
 
 }// namespace Astra::apps

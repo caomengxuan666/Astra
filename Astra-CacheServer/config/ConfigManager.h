@@ -69,6 +69,17 @@ namespace Astra::apps {
             return getLatestConfig()->getEnableLoggingFile();
         }
 
+        // 集群相关配置访问接口
+        bool getEnableCluster() const {
+            std::lock_guard<std::mutex> lock(mutex_);
+            return getLatestConfig()->getEnableCluster();
+        }
+
+        uint16_t getClusterPort() const {
+            std::lock_guard<std::mutex> lock(mutex_);
+            return getLatestConfig()->getClusterPort();
+        }
+
         // 动态更新配置（同步到所有配置源）
         void setListeningPort(uint16_t port) {
             std::lock_guard<std::mutex> lock(mutex_);

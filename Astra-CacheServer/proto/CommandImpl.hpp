@@ -52,6 +52,7 @@
 #pragma once
 #include "CommandResponseBuilder.hpp"
 #include "ICommand.hpp"
+#include "LuaExecutor.h"
 #include "caching/AstraCacheStrategy.hpp"
 #include "command_parser.hpp"
 #include "data/redis_types.hpp"
@@ -62,7 +63,6 @@
 #include <chrono>
 #include <datastructures/lru_cache.hpp>
 #include <memory>
-#include "LuaExecutor.h"
 
 namespace Astra::proto {
     using namespace datastructures;
@@ -1826,8 +1826,8 @@ namespace Astra::proto {
             size_t stop_idx = (stop >= 0) ? stop : (list_size + stop);
 
             // 确保索引在有效范围内
-            start_idx = std::max(start_idx, 0ULL);
-            stop_idx = std::min(stop_idx, list_size - 1);
+            start_idx = std::max(start_idx, static_cast<size_t>(0));
+            stop_idx = std::min(stop_idx, static_cast<size_t>(list_size - 1));
 
             // 如果范围无效，返回空数组
             if (start_idx > stop_idx || start_idx >= list_size) {
