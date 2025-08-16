@@ -10,3 +10,4 @@ third-party/mimalloc/bin
 /.cache
 checks.json
 /code_stats_reports/clang-tidy
+cmake-build-release

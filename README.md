@@ -13,6 +13,15 @@ Astra 是一个基于 C++17 的高性能 Redis 兼容缓存中间件，采用模
 - 支供发布/订阅模式和Lua脚本执行
 - 支持rdb快照保存和恢复
 
+## 多语言文档
+
+该文档有多种语言版本：
+
+- [中文版 README](README_zh.md)
+- [English README](README_en.md)
+
+请选择您需要的语言版本查看详细信息。
+
 ## 项目截图
 
 ![alt text](snapshots/{734A5CB7-AED1-4D02-BFF0-50F80F7A0A6F}.png)
@@ -125,7 +134,7 @@ Astra支持在Windows系统中以服务模式运行，提供后台持久化运�
 - 系统依赖：libfmt-dev libssl-dev
 
 ### 构建步骤
-```bash
+```
 # 克隆项目
 $ git clone https://github.com/caomengxuan666/Astra.git
 $ cd Astra
@@ -140,7 +149,7 @@ $ sudo make install
 ```
 
 ### 启动服务
-```bash
+```
 # 启动缓存服务器
 $ Astra-CacheServer -p 6379
 
@@ -161,7 +170,7 @@ $ Astra-CacheServer.exe autostart
 ```
 
 ## 功能演示
-```cpp
+```
 #include "sdk/astra_client.hpp"
 
 int main() {

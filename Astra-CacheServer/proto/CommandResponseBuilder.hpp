@@ -3,7 +3,6 @@
 #include "command_parser.hpp"
 #include "resp_builder.hpp"
 #include <algorithm>
-#include <sstream>
 #include <vector>
 
 namespace Astra::proto {
@@ -43,92 +42,95 @@ namespace Astra::proto {
             const std::vector<CommandInfo> &allCommands,
             const std::vector<std::string> &requestedCommands) {
 
-        std::ostringstream oss;
+        std::vector<std::string> result;
+
+        auto buildEntry = [&](const std::string &name, const std::string &docArray) {
+            std::vector<std::string> pair;
+            pair.push_back(RespBuilder::BulkString(name));
+            pair.push_back(docArray);
+            return RespBuilder::Array(pair);
+        };
 
         if (requestedCommands.empty()) {
-            oss << "%" << allCommands.size() << "\r\n";
             for (const auto &cmd: allCommands) {
-                oss << RespBuilder::BulkString(cmd.name);
-                oss << BuildCommandDocEntry(cmd);
+                std::string doc = BuildCommandDocEntry(cmd);
+                result.push_back(buildEntry(cmd.name, doc));
             }
         } else {
-            oss << "%" << requestedCommands.size() << "\r\n";
             for (const auto &reqName: requestedCommands) {
                 auto it = std::find_if(allCommands.begin(), allCommands.end(),
                                        [&](const CommandInfo &info) {
                                            return ICaseCmp(info.name, reqName);
                                        });
+
+                std::string doc;
                 if (it != allCommands.end()) {
-                    oss << RespBuilder::BulkString(it->name);
-                    oss << BuildCommandDocEntry(*it);
+                    doc = BuildCommandDocEntry(*it);
                 } else {
-                    oss << RespBuilder::BulkString(reqName);
-                    oss << "$-1\r\n";// Nil
+                    doc = "$-1\r\n";// nil
                 }
+                result.push_back(buildEntry(reqName, doc));
             }
         }
 
-        return oss.str();
+        return RespBuilder::Array(result);
     }
 
     // 构造单个命令的 DOC entry（RESP3 map 格式）
     inline std::string CommandResponseBuilder::BuildCommandDocEntry(const CommandInfo &cmd) {
-        std::ostringstream oss;
-
-        // 固定字段：summary, since, group, complexity, doc_flags
-        int fieldCount = 5;
-        if (!cmd.history.empty()) ++fieldCount;
-        if (!cmd.arguments.empty()) ++fieldCount;
-
-        oss << "%" << fieldCount << "\r\n";
+        std::vector<std::string> mapElements;
 
         // summary
-        oss << RespBuilder::BulkString("summary");
-        oss << RespBuilder::BulkString(cmd.summary);
+        mapElements.push_back(RespBuilder::BulkString("summary"));
+        mapElements.push_back(RespBuilder::BulkString(cmd.summary));
 
         // since
-        oss << RespBuilder::BulkString("since");
-        oss << RespBuilder::BulkString(cmd.since);
+        mapElements.push_back(RespBuilder::BulkString("since"));
+        mapElements.push_back(RespBuilder::BulkString(cmd.since));
 
         // group
-        oss << RespBuilder::BulkString("group");
-        oss << RespBuilder::BulkString(cmd.category);
+        mapElements.push_back(RespBuilder::BulkString("group"));
+        mapElements.push_back(RespBuilder::BulkString(cmd.category));
 
         // complexity
-        oss << RespBuilder::BulkString("complexity");
-        oss << RespBuilder::BulkString(cmd.complexity);
+        mapElements.push_back(RespBuilder::BulkString("complexity"));
+        mapElements.push_back(RespBuilder::BulkString(cmd.complexity));
 
         // doc_flags
-        oss << RespBuilder::BulkString("doc_flags");
-        oss << "$2\r\n[]\r\n";
+        mapElements.push_back(RespBuilder::BulkString("doc_flags"));
+        mapElements.push_back(RespBuilder::Array({}));
 
         // history（可选）
         if (!cmd.history.empty()) {
-            oss << RespBuilder::BulkString("history");
-            oss << "*" << cmd.history.size() << "\r\n";
+            std::vector<std::string> historyElements;
             for (const auto &entry: cmd.history) {
-                oss << "%2\r\n";
-                oss << RespBuilder::BulkString("version");
-                oss << RespBuilder::BulkString(entry.version);
-                oss << RespBuilder::BulkString("change");
-                oss << RespBuilder::BulkString(entry.change);
+                std::vector<std::string> historyMapElements;
+                historyMapElements.push_back(RespBuilder::BulkString("version"));
+                historyMapElements.push_back(RespBuilder::BulkString(entry.version));
+                historyMapElements.push_back(RespBuilder::BulkString("change"));
+                historyMapElements.push_back(RespBuilder::BulkString(entry.change));
+                historyElements.push_back(RespBuilder::Array(historyMapElements));
             }
+            mapElements.push_back(RespBuilder::BulkString("history"));
+            mapElements.push_back(RespBuilder::Array(historyElements));
         }
 
         // arguments（可选）
         if (!cmd.arguments.empty()) {
-            oss << RespBuilder::BulkString("arguments");
-            oss << "*" << cmd.arguments.size() << "\r\n";
+            std::vector<std::string> argElements;
             for (const auto &arg: cmd.arguments) {
-                oss << "%2\r\n";
-                oss << RespBuilder::BulkString("name");
-                oss << RespBuilder::BulkString(arg.name);
-                oss << RespBuilder::BulkString("type");
-                oss << RespBuilder::BulkString(arg.type);
+                std::vector<std::string> argMapElements;
+                argMapElements.push_back(RespBuilder::BulkString("name"));
+                argMapElements.push_back(RespBuilder::BulkString(arg.name));
+                argMapElements.push_back(RespBuilder::BulkString("type"));
+                argMapElements.push_back(RespBuilder::BulkString(arg.type));
+                argElements.push_back(RespBuilder::Array(argMapElements));
             }
+            mapElements.push_back(RespBuilder::BulkString("arguments"));
+            mapElements.push_back(RespBuilder::Array(argElements));
         }
 
-        return oss.str();
+        return RespBuilder::Array(mapElements);
     }
 
     // 构造原始 COMMAND 返回结构（不变）

@@ -1,9 +1,7 @@
 #pragma once
 #include "CommandImpl.hpp"
 // #include "LuaCommands.h" // 这个可能不需要，除非你定义了其他Lua特定的命令类
-#include "LuaCommands.h"
 #include "LuaExecutor.h"
-#include "RedisDataCommands.hpp"
 #include "caching/AstraCacheStrategy.hpp"
 #include "server/ChannelManager.hpp"// 引入频道管理器
 #include "server/stats_event.h"
@@ -66,7 +64,9 @@ namespace Astra::proto {
             if (cmd == "KEYS") return std::make_unique<KeysCommand>(cache_);
             if (cmd == "TTL") return std::make_unique<TtlCommand>(cache_);
             if (cmd == "INCR") return std::make_unique<IncrCommand>(cache_);
+            if (cmd == "INCRBY") return std::make_unique<IncrByCommand>(cache_);
             if (cmd == "DECR") return std::make_unique<DecrCommand>(cache_);
+            if (cmd == "DECRBY") return std::make_unique<DecrByCommand>(cache_);
             if (cmd == "EXISTS") return std::make_unique<ExistsCommand>(cache_);
             if (cmd == "MGET") return std::make_unique<MGetCommand>(cache_);
             if (cmd == "MSET") return std::make_unique<MSetCommand>(cache_);
@@ -81,13 +81,24 @@ namespace Astra::proto {
             if (cmd == "LPOP") return std::make_unique<LPopCommand>(cache_);
             if (cmd == "RPOP") return std::make_unique<RPopCommand>(cache_);
             if (cmd == "LLEN") return std::make_unique<LLenCommand>(cache_);
+            if (cmd == "LRANGE") return std::make_unique<LRangeCommand>(cache_);
+            if (cmd == "LINDEX") return std::make_unique<LIndexCommand>(cache_);
 
             // Set commands
             if (cmd == "SADD") return std::make_unique<SAddCommand>(cache_);
+            if (cmd == "SREM") return std::make_unique<SRemCommand>(cache_);
+            if (cmd == "SCARD") return std::make_unique<SCardCommand>(cache_);
             if (cmd == "SMEMBERS") return std::make_unique<SMembersCommand>(cache_);
+            if (cmd == "SISMEMBER") return std::make_unique<SIsMemberCommand>(cache_);
+            if (cmd == "SPOP") return std::make_unique<SPopCommand>(cache_);
 
             // ZSet commands
             if (cmd == "ZADD") return std::make_unique<ZAddCommand>(cache_);
+            if (cmd == "ZREM") return std::make_unique<ZRemCommand>(cache_);
+            if (cmd == "ZCARD") return std::make_unique<ZCardCommand>(cache_);
+            if (cmd == "ZRANGE") return std::make_unique<ZRangeCommand>(cache_);
+            if (cmd == "ZRANGEBYSCORE") return std::make_unique<ZRangeByScoreCommand>(cache_);
+            if (cmd == "ZSCORE") return std::make_unique<ZScoreCommand>(cache_);
 
             // Pub/Sub 命令（新增逻辑）
             if (cmd == "PUBSUB") {
@@ -122,9 +133,9 @@ namespace Astra::proto {
             REGISTER_LUA_CACHE_COMMAND("del", DelCommand);
             REGISTER_LUA_CACHE_COMMAND("exists", ExistsCommand);
             REGISTER_LUA_CACHE_COMMAND("incr", IncrCommand);
-            //REGISTER_LUA_CACHE_COMMAND("incrby", IncrByCommand);
+            REGISTER_LUA_CACHE_COMMAND("incrby", IncrByCommand);
             REGISTER_LUA_CACHE_COMMAND("decr", DecrCommand);
-            //REGISTER_LUA_CACHE_COMMAND("decrby", DecrByCommand);
+            REGISTER_LUA_CACHE_COMMAND("decrby", DecrByCommand);
             REGISTER_LUA_CACHE_COMMAND("ttl", TtlCommand);
             REGISTER_LUA_CACHE_COMMAND("mget", MGetCommand);
             REGISTER_LUA_CACHE_COMMAND("mset", MSetCommand);
@@ -147,24 +158,24 @@ namespace Astra::proto {
             REGISTER_LUA_CACHE_COMMAND("lpop", LPopCommand);
             REGISTER_LUA_CACHE_COMMAND("rpop", RPopCommand);
             REGISTER_LUA_CACHE_COMMAND("llen", LLenCommand);
-            //REGISTER_LUA_CACHE_COMMAND("lrange", LRangeCommand);
-            //REGISTER_LUA_CACHE_COMMAND("lindex", LIndexCommand);
+            REGISTER_LUA_CACHE_COMMAND("lrange", LRangeCommand);
+            REGISTER_LUA_CACHE_COMMAND("lindex", LIndexCommand);
 
             // 注册Set命令
             REGISTER_LUA_CACHE_COMMAND("sadd", SAddCommand);
-            //REGISTER_LUA_CACHE_COMMAND("srem", SRemCommand);
-            //REGISTER_LUA_CACHE_COMMAND("scard", SCardCommand);
+            REGISTER_LUA_CACHE_COMMAND("srem", SRemCommand);
+            REGISTER_LUA_CACHE_COMMAND("scard", SCardCommand);
             REGISTER_LUA_CACHE_COMMAND("smembers", SMembersCommand);
-            //REGISTER_LUA_CACHE_COMMAND("sismember", SIsMemberCommand);
-            //REGISTER_LUA_CACHE_COMMAND("spop", SPopCommand);
+            REGISTER_LUA_CACHE_COMMAND("sismember", SIsMemberCommand);
+            REGISTER_LUA_CACHE_COMMAND("spop", SPopCommand);
 
             // 注册ZSet命令
             REGISTER_LUA_CACHE_COMMAND("zadd", ZAddCommand);
-            //REGISTER_LUA_CACHE_COMMAND("zrem", ZRemCommand);
-            //REGISTER_LUA_CACHE_COMMAND("zcard", ZCardCommand);
-            //REGISTER_LUA_CACHE_COMMAND("zrange", ZRangeCommand);
-            //REGISTER_LUA_CACHE_COMMAND("zrangebyscore", ZRangeByScoreCommand);
-            //REGISTER_LUA_CACHE_COMMAND("zscore", ZScoreCommand);
+            REGISTER_LUA_CACHE_COMMAND("zrem", ZRemCommand);
+            REGISTER_LUA_CACHE_COMMAND("zcard", ZCardCommand);
+            REGISTER_LUA_CACHE_COMMAND("zrange", ZRangeCommand);
+            REGISTER_LUA_CACHE_COMMAND("zrangebyscore", ZRangeByScoreCommand);
+            REGISTER_LUA_CACHE_COMMAND("zscore", ZScoreCommand);
 
             // 使用宏注册需要 channel_manager_ 的命令
             // 注意：SUBSCRIBE/UNSUBSCRIBE/PSUBSCRIBE/PUNSUBSCRIBE 通常不在此注册

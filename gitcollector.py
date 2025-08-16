@@ -82,18 +82,21 @@ def generate_charts(cloc_data):
         plt.savefig(os.path.join(REPORT_DIR, 'bar_chart.png'), dpi=100)
         plt.close()
         
-        # Plotly 交互式图表
+        # Plotly 交互式图表 (改为静态图片)
         df = pd.DataFrame({
             'Language': languages,
             'Code': codes
         })
         fig = px.pie(df, values='Code', names='Language', 
                     title='代码语言分布', hole=0.4)
-        fig.write_html(os.path.join(REPORT_DIR, 'interactive_chart.html'))
+        fig.write_image(os.path.join(REPORT_DIR, 'pie_chart.png'))
         
         return True
     except ImportError:
         print("缺少可视化库，跳过图表生成")
+        return False
+    except Exception as e:
+        print(f"图表生成出错: {e}")
         return False
 
 def generate_html_report(cloc_data):
@@ -171,11 +174,12 @@ def generate_html_report(cloc_data):
         
         <div class="chart-container">
             <div class="chart">
-                <h3>代码分布</h3>
+                <h3>代码分布条形图</h3>
                 <img src="bar_chart.png" style="width:100%;">
             </div>
             <div class="chart">
-                <iframe src="interactive_chart.html" style="width:100%; height:400px; border:none;"></iframe>
+                <h3>代码分布饼图</h3>
+                <img src="pie_chart.png" style="width:100%;">
             </div>
         </div>
         
