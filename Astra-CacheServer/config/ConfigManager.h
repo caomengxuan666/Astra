@@ -49,6 +49,11 @@ namespace Astra::apps {
             return getLatestConfig()->getListeningPort();
         }
 
+        std::string getBindAddress() const {
+            std::lock_guard<std::mutex> lock(mutex_);
+            return getLatestConfig()->getBindAddress();
+        }
+
         Astra::LogLevel getLogLevel() const {
             std::lock_guard<std::mutex> lock(mutex_);
             return getLatestConfig()->getLogLevel();

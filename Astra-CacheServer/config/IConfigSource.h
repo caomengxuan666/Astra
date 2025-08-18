@@ -13,8 +13,9 @@ namespace Astra::apps {
         // 初始化配置（命令行解析/文件读取等）
         virtual bool initialize(int argc, char *argv[]) = 0;
 
-        // 配置项访问接口
+
         virtual uint16_t getListeningPort() const = 0;
+        virtual std::string getBindAddress() const = 0;
         virtual Astra::LogLevel getLogLevel() const = 0;
         virtual std::string getPersistenceFileName() const = 0;
         virtual size_t getMaxLRUSize() const = 0;

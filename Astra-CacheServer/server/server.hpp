@@ -13,6 +13,7 @@
 // 添加集群相关头文件
 #include "cluster/ClusterCommunicator.hpp"
 #include "cluster/ClusterManager.hpp"
+#include "config/ConfigManager.h"
 
 
 namespace Astra::apps {
@@ -30,13 +31,13 @@ namespace Astra::apps {
             task_queue_ = std::make_shared<concurrent::TaskQueue>(thread_count);
         }
 
-        void Start(unsigned short port) {
-            asio::ip::tcp::endpoint endpoint(asio::ip::tcp::v4(), port);
+        void Start(const std::string& bind_address, unsigned short port) {
+            asio::ip::tcp::endpoint endpoint(asio::ip::make_address(bind_address), port);
             acceptor_.open(endpoint.protocol());
             acceptor_.set_option(asio::ip::tcp::acceptor::reuse_address(true));
             acceptor_.bind(endpoint);
             acceptor_.listen();
-            ZEN_LOG_INFO("Server listening on port {}", port);
+            ZEN_LOG_INFO("Server listening on {}:{}", bind_address, port);
 
             LoadCacheFromFile(persistence_db_name_);
             DoAccept();

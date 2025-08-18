@@ -260,8 +260,8 @@ inline int startServer(int argc, char *argv[]) noexcept {
         });
 
         // 启动服务器（使用配置的端口）
-        server->Start(listening_port);
-        ZEN_LOG_INFO("Astra-CacheServer started on port {}", listening_port);
+        server->Start(config_manager->getBindAddress(), listening_port);
+        ZEN_LOG_INFO("Astra-CacheServer started on {}:{}", config_manager->getBindAddress(), listening_port);
         // 如果启用集群模式，启动定时发送 PING 消息
         if (config_manager->getEnableCluster()) {
             auto cluster_manager = Astra::cluster::ClusterManager::GetInstance();

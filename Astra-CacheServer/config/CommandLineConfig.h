@@ -10,6 +10,7 @@ namespace Astra::apps {
     public:
         CommandLineConfig()
             : listening_port_(6380),
+              bind_address_("127.0.0.1"),
               log_level_(Astra::LogLevel::INFO),
               max_lru_size_(std::numeric_limits<size_t>::max()),
               enable_logging_file_(false),
@@ -42,6 +43,11 @@ namespace Astra::apps {
         uint16_t getListeningPort() const override {
             std::lock_guard<std::mutex> lock(mutex_);
             return listening_port_;
+        }
+
+        std::string getBindAddress() const {
+            std::lock_guard<std::mutex> lock(mutex_);
+            return bind_address_;
         }
 
         Astra::LogLevel getLogLevel() const override {
@@ -90,6 +96,7 @@ namespace Astra::apps {
         bool parseArguments(int argc, char *argv[]) {
             args::ArgumentParser parser("Astra-Cache Server", "Redis-compatible cache server.");
             args::ValueFlag<int> port(parser, "port", "Listening port", {'p', "port"}, 6380);
+            args::ValueFlag<std::string> bind_address(parser, "address", "Bind address", {"bind"}, "127.0.0.1");
             args::ValueFlag<std::string> log_level(parser, "level", "Log level (trace/debug/info/warn/error/fatal)", {'l', "loglevel"}, "info");
             args::ValueFlag<std::string> persistence_file(parser, "file", "Persistence file path", {'c', "coredump"}, "");
             args::ValueFlag<size_t> max_lru(parser, "size", "Max LRU cache size", {'m', "maxsize"}, std::numeric_limits<size_t>::max());
@@ -109,6 +116,7 @@ namespace Astra::apps {
             }
 
             listening_port_ = static_cast<uint16_t>(args::get(port));
+            bind_address_ = args::get(bind_address);
             log_level_ = parseLogLevel(args::get(log_level));
             persistence_file_ = args::get(persistence_file);
             max_lru_size_ = args::get(max_lru);
@@ -134,6 +142,7 @@ namespace Astra::apps {
 
         mutable std::mutex mutex_;
         uint16_t listening_port_;
+        std::string bind_address_;
         Astra::LogLevel log_level_;
         std::string persistence_file_;
         size_t max_lru_size_;
