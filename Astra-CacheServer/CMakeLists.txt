@@ -7,6 +7,10 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
+# 添加构建选项
+option(BUILD_STATIC "Build with static linking" OFF)
+option(MI_BUILD_STATIC "Build mimalloc with static linking" OFF)
+
 # 通用的文件
 set(SERVER_SOURCE
         server.cpp
@@ -34,7 +38,11 @@ endif()
 
 add_lua_support(Astra-CacheServer)
 target_compile_definitions(Astra-CacheServer PRIVATE FMT_DISABLE_UTF8=1)
-
+set(MI_BUILD_STATIC ${BUILD_STATIC} CACHE INTERNAL "Inherit static build setting from parent")
+target_link_libraries(Astra-CacheServer PRIVATE
+    $<$<BOOL:${MI_BUILD_STATIC}>:-static>
+    ${CMAKE_THREAD_LIBS_INIT}
+)
 # target_link_libraries(Astra-CacheServer zenutils)
 add_library(Astra-CacheSDK SHARED
         sdk/astra_client.cpp

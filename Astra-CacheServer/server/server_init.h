@@ -249,13 +249,9 @@ inline int startServer(int argc, char *argv[]) noexcept {
         }
 
         // 信号处理
-        signals.async_wait([server_weak = std::weak_ptr<Astra::apps::AstraCacheServer>(server)](
-                                   const asio::error_code &, int) {
-            if (auto server = server_weak.lock()) {
-                ZEN_LOG_INFO("Shutting down server...");
-                server->Stop();
-            }
-            ZEN_LOG_INFO("Stopping IO context pool...");
+        signals.async_wait([](const asio::error_code &, int) {
+            ZEN_LOG_INFO("Shutting down server...");
+            ZEN_LOG_INFO("Server stopped");
             std::quick_exit(0);
         });
 

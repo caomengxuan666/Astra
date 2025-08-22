@@ -43,15 +43,29 @@ namespace Astra::apps {
             DoAccept();
         }
 
+        //todo 正常实现服务器的退出功能
         void Stop() {
             asio::error_code ec;
             acceptor_.close(ec);
 
-            std::lock_guard<std::mutex> lock(sessions_mutex_);
-            for (auto &session: active_sessions_) {
-                session->Stop();
+            std::vector<std::shared_ptr<Session>> sessions_to_stop;
+            {
+                std::lock_guard<std::mutex> lock(sessions_mutex_);
+                sessions_to_stop = std::move(active_sessions_);
+                active_sessions_.clear();
             }
-            active_sessions_.clear();
+
+            // 安全地停止所有会话
+            for (auto &session: sessions_to_stop) {
+                if (session) {
+                    session->Stop();
+                }
+            }
+
+            // 清理会话在ChannelManager中的引用
+            if (channel_manager_) {
+                channel_manager_.reset();
+            }
 
             task_queue_->Stop();
             SaveToFile(persistence_db_name_);

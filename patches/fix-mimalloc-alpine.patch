@@ -1,0 +1,19 @@
+diff --git a/third-party/mimalloc/src/prim/unix/prim.c b/third-party/mimalloc/src/prim/unix/prim.c
+index ad6ca2a..2cd4e5c 100644
+--- a/third-party/mimalloc/src/prim/unix/prim.c
++++ b/third-party/mimalloc/src/prim/unix/prim.c
+@@ -31,10 +31,10 @@ terms of the MIT license. A copy of the license can be found in the file
+ 
+ #if defined(__linux__)
+   #include <features.h>
+-  #include <linux/prctl.h>  // PR_SET_VMA
+-  //#if defined(MI_NO_THP)
+-  #include <sys/prctl.h>    // THP disable
+-  //#endif
++  #include <sys/prctl.h>    // THP disable, PR_SET_VMA
++  #if defined(__GLIBC__) && !defined(PR_SET_VMA)
++  #include <linux/prctl.h>
++  #endif
+   #if defined(__GLIBC__)
+   #include <linux/mman.h>   // linux mmap flags
+   #else
