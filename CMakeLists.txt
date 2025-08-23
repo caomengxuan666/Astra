@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(Astra VERSION 0.1.3.1 LANGUAGES CXX C)
+project(Astra VERSION 0.1.4.1 LANGUAGES CXX C)
 
 # 添加生成目录到包含路径
 include_directories("${PROJECT_BINARY_DIR}/core")
@@ -26,6 +26,7 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/utils
     ${PROJECT_SOURCE_DIR}/concurrent
     ${PROJECT_SOURCE_DIR}/datastructures
+    ${CMAKE_SOURCE_DIR}/third-party/leveldb/include
 )
 
 # 加载自定义函数
@@ -56,9 +57,15 @@ add_subdirectory(datastructures)
 set(MI_BUILD_SHARED OFF CACHE BOOL "" FORCE)
 set(MI_BUILD_STATIC ON CACHE BOOL "" FORCE)
 set(MI_INSTALL_TOPLEVEL ON CACHE BOOL "" FORCE)
+
+# 设置LevelDB构建选项，禁用测试和基准
+set(LEVELDB_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(LEVELDB_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
+set(LEVELDB_INSTALL ON CACHE BOOL "" FORCE)
+
 add_subdirectory(third-party/mimalloc)
 add_subdirectory(Astra-CacheServer)
-
+add_subdirectory(third-party/leveldb)
 # 测试与基准
 enable_testing()
 add_subdirectory(benchmark)

@@ -14,6 +14,8 @@
 #include "cluster/ClusterCommunicator.hpp"
 #include "cluster/ClusterManager.hpp"
 #include "config/ConfigManager.h"
+// 添加LevelDB持久化支持
+#include "persistence/leveldb_persistence.hpp"
 
 
 namespace Astra::apps {
@@ -31,7 +33,7 @@ namespace Astra::apps {
             task_queue_ = std::make_shared<concurrent::TaskQueue>(thread_count);
         }
 
-        void Start(const std::string& bind_address, unsigned short port) {
+        void Start(const std::string &bind_address, unsigned short port) {
             asio::ip::tcp::endpoint endpoint(asio::ip::make_address(bind_address), port);
             acceptor_.open(endpoint.protocol());
             acceptor_.set_option(asio::ip::tcp::acceptor::reuse_address(true));
@@ -47,7 +49,10 @@ namespace Astra::apps {
         void Stop() {
             asio::error_code ec;
             acceptor_.close(ec);
-
+            //保存rdb文件
+            SaveToFile(persistence_db_name_);
+            return;
+            //这些就暂时不管了，后面再改
             std::vector<std::shared_ptr<Session>> sessions_to_stop;
             {
                 std::lock_guard<std::mutex> lock(sessions_mutex_);
@@ -68,7 +73,7 @@ namespace Astra::apps {
             }
 
             task_queue_->Stop();
-            SaveToFile(persistence_db_name_);
+
 
             // 停止集群通信
             if (cluster_communicator_) {
@@ -78,17 +83,31 @@ namespace Astra::apps {
 
         void SaveToFile(const std::string &filename) {
             if (!enable_persistence_) return;
-            Astra::Persistence::SaveCacheToFile(*cache_.get(), filename);
+
+            if (use_leveldb_) {
+                Astra::Persistence::SaveCacheToLevelDB(*cache_.get(), leveldb_path_);
+            } else {
+                Astra::Persistence::SaveCacheToFile(*cache_.get(), filename);
+            }
         }
 
         void LoadCacheFromFile(const std::string &filename) {
             if (!enable_persistence_) return;
-            ZEN_LOG_INFO("Loading cache from {}", persistence_db_name_);
-            Astra::Persistence::LoadCacheFromFile(*cache_.get(), filename);
+
+            if (use_leveldb_) {
+                Astra::Persistence::LoadCacheFromLevelDB(*cache_.get(), leveldb_path_);
+            } else {
+                Astra::Persistence::LoadCacheFromFile(*cache_.get(), filename);
+            }
         }
 
         void setEnablePersistence(bool enable) {
             enable_persistence_ = enable;
+        }
+
+        void setEnableLevelDBPersistence(bool enable, const std::string &db_path) {
+            use_leveldb_ = enable;
+            leveldb_path_ = db_path;
         }
 
         // 启用集群模式
@@ -152,6 +171,7 @@ namespace Astra::apps {
         }
 
         std::string persistence_db_name_;
+        std::string leveldb_path_;
         asio::io_context &context_;
         asio::ip::tcp::acceptor acceptor_;
         std::shared_ptr<datastructures::AstraCache<datastructures::LRUCache, std::string, std::string>> cache_;
@@ -159,6 +179,7 @@ namespace Astra::apps {
         std::vector<std::shared_ptr<Session>> active_sessions_;
         std::mutex sessions_mutex_;
         bool enable_persistence_ = false;
+        bool use_leveldb_ = false;
         std::shared_ptr<ChannelManager> channel_manager_;// 持有ChannelManager实例
         // 集群相关成员
         bool enable_cluster_ = false;

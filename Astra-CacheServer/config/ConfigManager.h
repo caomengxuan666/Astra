@@ -85,6 +85,29 @@ namespace Astra::apps {
             return getLatestConfig()->getClusterPort();
         }
 
+        // 持久化相关配置访问接口
+        std::string getPersistenceType() const {
+            std::lock_guard<std::mutex> lock(mutex_);
+            // 需要将getLatestConfig()转换为CommandLineConfig*类型以访问扩展方法
+            auto cmd_config = dynamic_cast<const CommandLineConfig *>(getLatestConfig());
+            if (cmd_config) {
+                return cmd_config->getPersistenceType();
+            }
+            // 默认返回file类型
+            return "file";
+        }
+
+        std::string getLevelDBPath() const {
+            std::lock_guard<std::mutex> lock(mutex_);
+            // 需要将getLatestConfig()转换为CommandLineConfig*类型以访问扩展方法
+            auto cmd_config = dynamic_cast<const CommandLineConfig *>(getLatestConfig());
+            if (cmd_config) {
+                return cmd_config->getLevelDBPath();
+            }
+            // 默认返回空路径
+            return "";
+        }
+
         // 动态更新配置（同步到所有配置源）
         void setListeningPort(uint16_t port) {
             std::lock_guard<std::mutex> lock(mutex_);

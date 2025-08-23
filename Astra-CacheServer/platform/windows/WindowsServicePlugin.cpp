@@ -140,7 +140,7 @@ void StartServerInServiceMode(int argc, char *argv[]) {
                 persistence_file);
 
         g_server->setEnablePersistence(false);
-        g_server->Start(config_manager->getBindAddress(),listening_port);
+        g_server->Start(config_manager->getBindAddress(), listening_port);
 
         ZEN_LOG_INFO("服务已启动，监听端口: {}", listening_port);
         ZEN_LOG_INFO("LRU最大尺寸: {}", max_lru_size);

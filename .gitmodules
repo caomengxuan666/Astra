@@ -7,3 +7,9 @@
 [submodule "third-party/gooletest"]
 	path = third-party/gooletest
 	url = https://github.com/google/googletest.git
+[submodule "leveldb"]
+	path = leveldb
+	url = https://github.com/google/leveldb.git
+[submodule "third-party/leveldb"]
+	path = third-party/leveldb
+	url = https://github.com/google/leveldb.git

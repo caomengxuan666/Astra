@@ -42,6 +42,7 @@ set(MI_BUILD_STATIC ${BUILD_STATIC} CACHE INTERNAL "Inherit static build setting
 target_link_libraries(Astra-CacheServer PRIVATE
     $<$<BOOL:${MI_BUILD_STATIC}>:-static>
     ${CMAKE_THREAD_LIBS_INIT}
+    leveldb
 )
 # target_link_libraries(Astra-CacheServer zenutils)
 add_library(Astra-CacheSDK SHARED

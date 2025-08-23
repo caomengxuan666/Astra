@@ -233,7 +233,21 @@ inline int startServer(int argc, char *argv[]) noexcept {
         // 创建服务器实例
         auto server = std::make_shared<Astra::apps::AstraCacheServer>(
                 io_context, max_lru_size, persistence_file);
-        server->setEnablePersistence(false);
+
+        // 根据配置设置持久化方式
+        std::string persistence_type = config_manager->getPersistenceType();
+        if (persistence_type == "leveldb") {
+            server->setEnablePersistence(true);
+            server->setEnableLevelDBPersistence(true, config_manager->getLevelDBPath());
+            ZEN_LOG_INFO("Using LevelDB persistence at path: {}", config_manager->getLevelDBPath());
+        } else if (persistence_type == "file") {
+            server->setEnablePersistence(true);
+            server->setEnableLevelDBPersistence(false, "");
+            ZEN_LOG_INFO("Using file persistence at path: {}", persistence_file);
+        } else {
+            server->setEnablePersistence(false);
+            ZEN_LOG_INFO("Persistence disabled");
+        }
 
         // 如果启用集群模式，初始化集群
         if (config_manager->getEnableCluster()) {
@@ -249,9 +263,10 @@ inline int startServer(int argc, char *argv[]) noexcept {
         }
 
         // 信号处理
-        signals.async_wait([](const asio::error_code &, int) {
+        signals.async_wait([&server](const asio::error_code &, int) {
             ZEN_LOG_INFO("Shutting down server...");
             ZEN_LOG_INFO("Server stopped");
+            server->Stop();
             std::quick_exit(0);
         });
 

@@ -125,7 +125,7 @@ namespace Astra::apps {
             channel_manager_->Unsubscribe(channel, self);
         }
 
-        // 2. 清理模式订阅（关键修复）
+        // 2. 清理模式订阅
         for (const auto &pattern: pubsub_session_->GetSubscribedPatterns()) {
             channel_manager_->PUnsubscribe(pattern, self);
         }

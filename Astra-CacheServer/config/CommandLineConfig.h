@@ -12,10 +12,13 @@ namespace Astra::apps {
             : listening_port_(6380),
               bind_address_("127.0.0.1"),
               log_level_(Astra::LogLevel::INFO),
+              persistence_file_(""),
               max_lru_size_(std::numeric_limits<size_t>::max()),
               enable_logging_file_(false),
               enable_cluster_(false),
-              cluster_port_(16380) {}
+              cluster_port_(16380),
+              persistence_type_("leveldb"),
+              leveldb_path_("./astra_leveldb") {}
 
         // 基础初始化方法（供普通模式使用）
         bool initialize(int argc, char *argv[]) override {
@@ -45,7 +48,7 @@ namespace Astra::apps {
             return listening_port_;
         }
 
-        std::string getBindAddress() const {
+        std::string getBindAddress() const override {
             std::lock_guard<std::mutex> lock(mutex_);
             return bind_address_;
         }
@@ -70,6 +73,16 @@ namespace Astra::apps {
             return enable_logging_file_;
         }
 
+        void setListeningPort(uint16_t port) override {
+            std::lock_guard<std::mutex> lock(mutex_);
+            listening_port_ = port;
+        }
+
+        void setLogLevel(Astra::LogLevel level) override {
+            std::lock_guard<std::mutex> lock(mutex_);
+            log_level_ = level;
+        }
+
         // 集群相关配置访问接口
         bool getEnableCluster() const override {
             std::lock_guard<std::mutex> lock(mutex_);
@@ -81,14 +94,15 @@ namespace Astra::apps {
             return cluster_port_;
         }
 
-        void setListeningPort(uint16_t port) override {
+        // 持久化类型和路径
+        std::string getPersistenceType() const {
             std::lock_guard<std::mutex> lock(mutex_);
-            listening_port_ = port;
+            return persistence_type_;
         }
 
-        void setLogLevel(Astra::LogLevel level) override {
+        std::string getLevelDBPath() const {
             std::lock_guard<std::mutex> lock(mutex_);
-            log_level_ = level;
+            return leveldb_path_;
         }
 
     private:
@@ -104,6 +118,9 @@ namespace Astra::apps {
             // 集群相关参数
             args::ValueFlag<bool> enable_cluster(parser, "enable", "Enable cluster mode", {"cluster"}, false);
             args::ValueFlag<int> cluster_port(parser, "port", "Cluster communication port", {"cluster-port"}, 16380);
+            // 持久化相关参数
+            args::ValueFlag<std::string> persistence_type_arg(parser, "type", "Persistence type (file/leveldb)", {"persistence-type"}, "leveldb");
+            args::ValueFlag<std::string> leveldb_path_arg(parser, "path", "LevelDB path", {"leveldb-path"}, "./astra_leveldb");
 
             try {
                 parser.ParseCLI(argc, argv);
@@ -123,6 +140,8 @@ namespace Astra::apps {
             enable_logging_file_ = args::get(enable_log_file);
             enable_cluster_ = args::get(enable_cluster);
             cluster_port_ = static_cast<uint16_t>(args::get(cluster_port));
+            persistence_type_ = args::get(persistence_type_arg);
+            leveldb_path_ = args::get(leveldb_path_arg);
             return true;
         }
 
@@ -140,16 +159,18 @@ namespace Astra::apps {
             return it != level_map.end() ? it->second : Astra::LogLevel::INFO;
         }
 
-        mutable std::mutex mutex_;
+        // 配置参数
         uint16_t listening_port_;
         std::string bind_address_;
         Astra::LogLevel log_level_;
         std::string persistence_file_;
         size_t max_lru_size_;
         bool enable_logging_file_;
-        // 集群相关配置
         bool enable_cluster_;
         uint16_t cluster_port_;
+        std::string persistence_type_;
+        std::string leveldb_path_;
+        mutable std::mutex mutex_;
     };
 
 }// namespace Astra::apps

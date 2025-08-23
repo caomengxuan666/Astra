@@ -7,7 +7,7 @@
 template<typename T>
 /**
  * @author       : caomengxuan666
- * @brief        : 单例模式的封装类,采用CTPR模式
+ * @brief        : 单例模式的封装类,采用CRTP模式
  * @return        {*}
 **/
 class Singleton {
