@@ -10,8 +10,9 @@ Astra 是一个基于 C++17 的高性能 Redis 兼容缓存中间件，采用模
 - 实现命令模式的客户端 SDK，包含C++ SDK、C SDK、LabView SDK，兼容hiredis 库
 - 支持 TTL 过期机制与后台清理
 - 在Windows下支持服务模式启动
-- 支供发布/订阅模式和Lua脚本执行
+- 攽供发布/订阅模式和Lua脚本执行
 - 支持rdb快照保存和恢复
+- 支持基于LevelDB的高性能持久化存储
 
 ## 项目截图
 
@@ -176,10 +177,13 @@ Astra支持在Windows系统中以服务模式运行，提供后台持久化运�
 - 系统依赖：libfmt-dev libssl-dev
 
 ### 构建步骤
-```bash
+```
 # 克隆项目
 $ git clone https://github.com/caomengxuan666/Astra.git
 $ cd Astra
+
+# 初始化子模块(LevelDB等)
+$ git submodule update --init --recursive
 
 # 构建项目
 $ mkdir build && cd build
@@ -191,9 +195,12 @@ $ sudo make install
 ```
 
 ### 启动服务
-```bash
-# 启动缓存服务器
-$ Astra-CacheServer -p 6379
+```
+# 启动缓存服务器，使用LevelDB持久化
+$ Astra-CacheServer -p 6379 --persistence-type leveldb --leveldb-path ./astra_leveldb
+
+# 启动缓存服务器，使用文件持久化
+$ Astra-CacheServer -p 6379 --persistence-type file -c dump.rdb
 
 # 运行示例客户端
 $ ./build/bin/example_client
@@ -212,7 +219,7 @@ $ Astra-CacheServer.exe autostart
 ```
 
 ## 功能演示
-```cpp
+```
 #include "sdk/astra_client.hpp"
 
 int main() {
@@ -267,6 +274,33 @@ int main() {
     auto range = client.ZRange("scores", 0, -1);
 }
 ```
+
+## LevelDB持久化支持
+
+Astra现在支持使用LevelDB作为高性能持久化存储后端。LevelDB是由Google开发的快速键值存储库，提供快速读写性能和更好的空间效率。
+
+### 特性
+- 高性能读写：LevelDB是专业的键值存储引擎，具有比文本文件更好的读写性能
+- 更可靠：提供更强的数据一致性和持久性保证
+- 空间效率：使用压缩和优化的数据结构，相比文本存储更节省空间
+- 并发支持：支持多线程访问，可以更好地与并发架构集成
+
+### 使用方法
+启动服务器时，通过命令行参数指定使用LevelDB持久化：
+```bash
+# 使用LevelDB持久化
+$ Astra-CacheServer -p 6379 --persistence-type leveldb --leveldb-path ./astra_leveldb
+
+# 使用文件持久化（默认）
+$ Astra-CacheServer -p 6379 --persistence-type file -c dump.rdb
+```
+
+### 配置参数
+- `--persistence-type`: 指定持久化类型，可以是`leveldb`或`file`
+- `--leveldb-path`: 当使用LevelDB持久化时，指定LevelDB数据库路径
+
+### 数据迁移
+服务器支持在不同持久化方式之间进行数据迁移。只需更改启动参数，服务器会在启动时从当前配置的存储中加载数据，并在关闭时保存到新的存储中。
 
 ## 目录结构
 ```

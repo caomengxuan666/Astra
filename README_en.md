@@ -12,6 +12,7 @@ Astra is a high-performance Redis-compatible cache middleware based on C++17, fe
 - Supports service mode startup on Windows
 - Provides publish/subscribe mode and Lua script execution
 - Supports RDB snapshot saving and restoration
+- Supports high-performance persistence with LevelDB
 
 ## Project Screenshots
 
@@ -142,6 +143,9 @@ Astra supports running in service mode on Windows systems, providing background 
 $ git clone https://github.com/caomengxuan666/Astra.git
 $ cd Astra
 
+# Initialize submodules (including LevelDB)
+$ git submodule update --init --recursive
+
 # Build project
 $ mkdir build && cd build
 $ cmake ..
@@ -153,8 +157,11 @@ $ sudo make install
 
 ### Start Service
 ```bash
-# Start cache server
-$ Astra-CacheServer -p 6379
+# Start cache server with LevelDB persistence
+$ Astra-CacheServer -p 6379 --persistence-type leveldb --leveldb-path ./astra_leveldb
+
+# Start cache server with file persistence
+$ Astra-CacheServer -p 6379 --persistence-type file -c dump.rdb
 
 # Run example client
 $ ./build/bin/example_client
@@ -173,7 +180,7 @@ $ Astra-CacheServer.exe autostart
 ```
 
 ## Feature Demonstration
-```cpp
+```
 #include "sdk/astra_client.hpp"
 
 int main() {
@@ -228,6 +235,33 @@ int main() {
     auto range = client.ZRange("scores", 0, -1);
 }
 ```
+
+## LevelDB Persistence Support
+
+Astra now supports using LevelDB as a high-performance persistence storage backend. LevelDB is a fast key-value storage library developed by Google, providing fast read/write performance and better space efficiency.
+
+### Features
+- High-performance read/write: LevelDB is a professional key-value storage engine with better read/write performance than text files
+- More reliable: Provides stronger data consistency and durability guarantees
+- Space efficient: Uses compression and optimized data structures, saving more space compared to text storage
+- Concurrency support: Supports multi-threaded access, which can be better integrated with concurrent architectures
+
+### Usage
+Specify to use LevelDB persistence through command-line arguments when starting the server:
+```bash
+# Use LevelDB persistence
+$ Astra-CacheServer -p 6379 --persistence-type leveldb --leveldb-path ./astra_leveldb
+
+# Use file persistence (default)
+$ Astra-CacheServer -p 6379 --persistence-type file -c dump.rdb
+```
+
+### Configuration Parameters
+- `--persistence-type`: Specifies the persistence type, can be `leveldb` or `file`
+- `--leveldb-path`: When using LevelDB persistence, specifies the LevelDB database path
+
+### Data Migration
+The server supports data migration between different persistence methods. Simply change the startup parameters, and the server will load data from the currently configured storage at startup and save to the new storage when shutting down.
 
 ## Directory Structure
 ```

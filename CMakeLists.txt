@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(Astra VERSION 0.1.4.1 LANGUAGES CXX C)
+project(Astra VERSION 0.1.3.0 LANGUAGES CXX C)
 
 # 添加生成目录到包含路径
 include_directories("${PROJECT_BINARY_DIR}/core")
@@ -125,7 +125,7 @@ include(CPack)
 # Linux系统服务自动配置
 if(LINUX)
     # 安装脚本和服务模板
-    install(FILES ${PROJECT_SOURCE_DIR}/astra_service.sh
+    install(FILES ${PROJECT_SOURCE_DIR}/scripts/astra_service.sh
             DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
             PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ 
                         GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ)

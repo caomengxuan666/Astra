@@ -1,194 +1,195 @@
-# Astra - 高性能Redis兼容缓存中间件
+# Astra - High-performance Redis-compatible Cache Middleware
 
 [![Build Status](https://https://github.com/caomengxuan666/Astra/build-status)](https://github.com/caomengxuan666/Astra)
 [![License](https://img.shields.io/github/license/caomengxuan666/Astra)](https://github.com/caomengxuan666/Astra/blob/master/LICENSE)
 
-## 项目概述
-Astra 是一个基于 C++17 的高性能 Redis 兼容缓存中间件，采用模块化设计实现以下核心价值：
-- 提供线程安全的 LRU 缓存实现
-- 支持 Redis 协议的网络通信
-- 实现命令模式的客户端 SDK，包含C++ SDK、C SDK、LabView SDK，兼容hiredis 库
-- 支持 TTL 过期机制与后台清理
-- 在Windows下支持服务模式启动
-- 支供发布/订阅模式和Lua脚本执行
-- 支持rdb快照保存和恢复
+## Project Overview
+Astra is a high-performance Redis-compatible cache middleware based on C++17, featuring modular design with the following core values:
+- Provides thread-safe LRU cache implementation
+- Supports Redis protocol network communication
+- Implements command pattern client SDK, including C++ SDK, C SDK, and LabVIEW SDK, compatible with hiredis library
+- Supports TTL expiration mechanism and background cleanup
+- Supports service mode startup on Windows
+- Provides publish/subscribe mode and Lua script execution
+- Supports RDB snapshot saving and restoration
+- Supports persistence with LevelDB for high-performance data storage
 
-## 多语言文档
+## Multilingual Documentation
 
-该文档有多种语言版本：
+This documentation is available in multiple languages:
 
-- [中文版 README](README_zh.md)
 - [English README](README_en.md)
+- [中文版 README](README_zh.md)
 
-请选择您需要的语言版本查看详细信息。
+Please select your preferred language version for detailed information.
 
-## 项目截图
+## Project Screenshots
 
 ![alt text](snapshots/{734A5CB7-AED1-4D02-BFF0-50F80F7A0A6F}.png)
 
-### 项目统计
-- [代码统计报告](code_stats_reports/report.html) - 详细代码行数、文件数量等统计信息
-- [交互式图表](code_stats_reports/interactive_chart.html) - 可交互的代码统计图表
-![语言统计](code_stats_reports/bar_chart.png)
+### Project Statistics
+- [Code Statistics Report](code_stats_reports/report.html) - Detailed code line count, file count, etc.
+- [Interactive Charts](code_stats_reports/interactive_chart.html) - Interactive code statistics charts
+![Language Statistics](code_stats_reports/bar_chart.png)
 
-### 核心模块
-| 模块 | 功能 | 技术实现 |
+### Core Modules
+| Module | Function | Technical Implementation |
 |-------|-------|-------|
-| **Core** | 基础类型定义与宏 | C++17 特性
-| **Utils** | 日志系统/范围保护 | RAII 模式
-| **DataStructures** | 无锁队列/LRU 缓存 | CAS 原子操作
-| **concurrent** | 并发支持框架 | 线程池/任务队列/任务流
-| **CacheServer** | Redis 协议解析 | Asio 异步 IO
-| **Client SDK** | 命令模式封装 | 多态设计
+| **Core** | Basic type definitions and macros | C++17 features
+| **Utils** | Logging system/scope protection | RAII pattern
+| **DataStructures** | Lock-free queue/LRU cache | CAS atomic operations
+| **concurrent** | Concurrency support framework | Thread pool/task queue/task flow
+| **CacheServer** | Redis protocol parsing | Asio asynchronous IO
+| **Client SDK** | Command pattern encapsulation | Polymorphic design
 
-### 支持的Redis命令
+### Supported Redis Commands
 
-#### 键值命令
+#### Key-Value Commands
 - GET, SET, DEL, EXISTS, KEYS, TTL, MGET, MSET
 
-#### 数值命令
+#### Numeric Commands
 - INCR, DECR
 
-#### 连接命令
+#### Connection Commands
 - PING
 
-#### 服务命令
+#### Server Commands
 - COMMAND, INFO
 
-#### 发布/订阅命令
+#### Publish/Subscribe Commands
 - SUBSCRIBE, UNSUBSCRIBE, PUBLISH, PSUBSCRIBE, PUNSUBSCRIBE
 
-#### Lua脚本命令
+#### Lua Script Commands
 - EVAL, EVALSHA
 
-### 并发模块设计
-`concurrent` 模块提供完整的并发解决方案：
+### Concurrent Module Design
+`concurrent` module provides a complete concurrency solution:
 
-1. **ThreadPool 线程池**
-   - 优先级调度支持（小值优先）
-   - 工作窃取算法优化负载均衡
-   - 完整生命周期管理（Stop/Join/Resume）
-   - 支持局部任务队列与全局任务队列混合模式
+1. **ThreadPool Thread Pool**
+   - Priority scheduling support (lower value first)
+   - Work stealing algorithm for load balancing optimization
+   - Full lifecycle management (Stop/Join/Resume)
+   - Supports mixed mode of local task queues and global task queues
 
-2. **TaskQueue 任务队列**
-   - 支持带回调的任务提交
-   - 提供Post/Submit接口
-   - 基于线程池实现异步任务调度
+2. **TaskQueue Task Queue**
+   - Supports task submission with callbacks
+   - Provides Post/Submit interfaces
+   - Implements asynchronous task scheduling based on thread pool
 
-3. **任务流编排**
-   - **SeriesWork**：串行任务组（类似Promise链式调用）
-   - **ParallelWork**：并行任务组
-   - **TaskPipeline**：带共享上下文的状态化任务链
+3. **Task Flow Orchestration**
+   - **SeriesWork**: Serial task group (similar to Promise chaining)
+   - **ParallelWork**: Parallel task group
+   - **TaskPipeline**: Stateful task chain with shared context
 
-```cpp
-// 示例：并发任务编排
+```
+// Example: Concurrent task orchestration
 auto queue = TaskQueue::Create();
 
-// 串行任务
+// Serial task
 SeriesWork::Create(queue)
     ->Then([]{ std::cout << "Step 1"; })
     ->Then([]{ std::cout << "Step 2"; })
     ->Run();
 
-// 并行任务
+// Parallel task
 ParallelWork::Create(queue)
-    ->Add([]{ /* 任务A */ })
-    ->Add([]{ /* 任务B */ })
+    ->Add([]{ /* Task A */ })
+    ->Add([]{ /* Task B */ })
     ->Run();
 ```
 
-## 技术亮点
-- **六大技术特性**:
-  - 异步网络模型（基于 Asio + 自定义线程池）
-  - 分片锁机制提升并发性能
-  - 无锁数据结构优化访问效率
-  - 完整协议支持（Redis RESP 兼容）
-  - 可扩展的命令模式设计
-  - 多级任务队列优化资源调度
+## Technical Highlights
+- **Six Major Technical Features**:
+  - Asynchronous network model (based on Asio + custom thread pool)
+  - Sharding lock mechanism to enhance concurrency performance
+  - Lock-free data structures to optimize access efficiency
+  - Full protocol support (Redis RESP compatible)
+  - Extensible command pattern design
+  - Multi-level task queue to optimize resource scheduling
 
-## 客户端SDK
+## Client SDK
 
-Astra提供了多种语言的客户端SDK，方便开发者集成到自己的应用中：
+Astra provides client SDKs in multiple languages, making it easy for developers to integrate into their applications:
 
 ### C++ SDK
-面向C++开发者，提供完整的Astra功能访问接口，支持所有Redis兼容命令。
+For C++ developers, it provides a complete interface to access Astra features, supporting all Redis-compatible commands.
 
 ### C SDK
-面向C开发者，提供C语言接口访问Astra功能，兼容标准C语言规范。
+For C developers, it provides C language interfaces to access Astra features, compatible with standard C language specifications.
 
 ### LabVIEW SDK
-面向LabVIEW开发者，提供LabVIEW环境下的Astra访问接口，方便在LabVIEW中集成缓存功能。
+For LabVIEW developers, it provides Astra access interfaces in the LabVIEW environment, facilitating cache integration in LabVIEW.
 
-## Windows服务模式
+## Windows Service Mode
 
-Astra支持在Windows系统中以服务模式运行，提供后台持久化运行能力：
-- 支持安装为Windows服务
-- 支持启动、停止服务
-- 支持设置自动启动
-- 服务模式下稳定运行，支持系统重启后自动启动
+Astra supports running in service mode on Windows systems, providing background persistent operation capabilities:
+- Supports installation as a Windows service
+- Supports starting and stopping the service
+- Supports setting automatic startup
+- Stable operation in service mode, supports automatic startup after system restart
 
-## 快速入门
-### 构建要求
-- C++17 兼容编译器（GCC 9+/Clang 10+）
+## Quick Start
+### Build Requirements
+- C++17 compatible compiler (GCC 9+/Clang 10+)
 - CMake 3.14+
-- 系统依赖：libfmt-dev libssl-dev
+- System dependencies: libfmt-dev libssl-dev
 
-### 构建步骤
+### Build Steps
 ```
-# 克隆项目
+# Clone the project
 $ git clone https://github.com/caomengxuan666/Astra.git
 $ cd Astra
 
-# 构建项目
+# Build the project
 $ mkdir build && cd build
 $ cmake ..
 $ make -j$(nproc)
 
-# 安装项目
+# Install the project
 $ sudo make install
 ```
 
-### 启动服务
+### Start Service
 ```
-# 启动缓存服务器
+# Start cache server
 $ Astra-CacheServer -p 6379
 
-# 运行示例客户端
+# Run example client
 $ ./build/bin/example_client
 
-# 在windows下安装服务模式
+# Install service mode on Windows
 $ Astra-CacheServer.exe install
 
-# 启动服务
+# Start service
 $ Astra-CacheServer.exe start
 
-# 停止服务
+# Stop service
 $ Astra-CacheServer.exe stop
 
-# 设置服务自动启动
+# Set service to auto-start
 $ Astra-CacheServer.exe autostart
 ```
 
-## 功能演示
+## Feature Demonstration
 ```
 #include "sdk/astra_client.hpp"
 
 int main() {
     Astra::Client::AstraClient client("127.0.0.1", 8080);
     
-    // 基础操作
+    // Basic operations
     client.Set("key", "value");
     auto val = client.Get("key");
     
-    // 带TTL的缓存
+    // Cache with TTL
     client.Set("temp_key", "value", std::chrono::seconds(10));
     auto ttl = client.TTL("temp_key");
     
-    // 原子操作
+    // Atomic operations
     client.Incr("counter");
     auto count = client.Get("counter");
     
-    // 批量操作
+    // Batch operations
     std::vector<std::pair<std::string, std::string>> kvs = {
         {"key1", "value1"},
         {"key2", "value2"}
@@ -198,42 +199,42 @@ int main() {
     std::vector<std::string> keys = {"key1", "key2"};
     auto values = client.MGet(keys);
     
-    // 发布/订阅
-    // 订阅需要单独的客户端实例
-    // 发布消息
+    // Publish/Subscribe
+    // Subscription requires a separate client instance
+    // Publish message
     client.Publish("channel", "Hello, Astra!");
 }
 ```
 
-## 目录结构
+## Directory Structure
 ```
 Astra/
-├── Astra-CacheServer/    # Redis兼容缓存服务
-│   ├── platform/         # 平台相关代码
-│   │   └── windows/      # Windows服务模式实现
-│   ├── sdk/              # 客户端SDK（多种语言实现）
-│   └── ...               # 服务器核心代码
-├── core/                 # 核心类型定义
-├── utils/                # 工具类（日志/ScopeGuard）
-├── concurrent/           # 并发支持（线程池/TaskQueue）
-├── datastructures/       # 数据结构（LRU/无锁队列）
-├── tests/                # GTest单元测试
-├── third-party/          # 第三方依赖（Asio/fmt）
-└── benchmark/            # 性能测试
+├── Astra-CacheServer/    # Redis-compatible cache service
+│   ├── platform/         # Platform-specific code
+│   │   └── windows/      # Windows service mode implementation
+│   ├── sdk/              # Client SDKs (multiple language implementations)
+│   └── ...               # Server core code
+├── core/                 # Core type definitions
+├── utils/                # Utility classes (logging/ScopeGuard)
+├── concurrent/           # Concurrency support (thread pool/TaskQueue)
+├── datastructures/       # Data structures (LRU/lock-free queue)
+├── tests/                # GTest unit tests
+├── third-party/          # Third-party dependencies (Asio/fmt)
+└── benchmark/            # Performance tests
 
 ```
 
-### 常见问题
+### Common Issues
 
-#### Q: 为什么会出现 "Failed to send response: 远程主机强迫关闭了一个现有的连接"?
+#### Q: Why does "Failed to send response: 远程主机强迫关闭了一个现有的连接" appear?
 
-**A:** 这是因为客户端在调用 `DEL` 方法后立即退出了，导致服务器发送的消息被认为"丢失"了，因为'DEL'本身会返回一个'OK'。但这完全不影响程序的正常运行。客户端本身不需要一直阻塞以等待服务器确认删除数据的成功与否。正常情况下删除操作也不会失败。
+**A:** This occurs because the client exits immediately after calling the `DEL` method, causing the server's message to be considered "lost," as 'DEL' itself returns 'OK'. However, this does not affect the program's normal operation. The client does not need to block indefinitely to wait for the server to confirm the successful deletion of data. Normally, the delete operation will not fail.
 
-## 贡献指南
-请通过 [CONTRIBUTING.md](CONTRIBUTING.md) 获取完整的贡献指南，包含代码规范、提交要求和审查流程。
+## Contribution Guide
+Please refer to [CONTRIBUTING.md](CONTRIBUTING.md) for the complete contribution guide, including code style, submission requirements, and review process.
 
-## 问题反馈
-请通过 [GitHub Issues](https://github.com/caomengxuan666/Astra/issues) 提交 bug 报告或功能请求
+## Issue Reporting
+Please submit bug reports or feature requests through [GitHub Issues](https://github.com/caomengxuan666/Astra/issues)
 
-## 许可证
-本项目采用 MIT License - 详见 [LICENSE](LICENSE) 文件
+## License
+This project is licensed under the MIT License - see [LICENSE](LICENSE) file
